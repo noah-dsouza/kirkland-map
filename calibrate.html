@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unit Calibration Tool — Pandora Kirkland</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root { --lime: #ddfa00; --black: #111; --white: #fff; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Barlow', sans-serif; background: #1a1a2e; color: var(--white); min-height: 100vh; display: flex; flex-direction: column; }
+
+    .topbar {
+      background: var(--lime); color: var(--black);
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 14px;
+      letter-spacing: 0.16em; text-transform: uppercase; padding: 12px 20px;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .topbar-title { font-size: 18px; margin-right: auto; }
+
+    .controls {
+      background: #13132a; border-bottom: 1px solid #2a2a4a;
+      padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .floor-btns { display: flex; gap: 6px; }
+    .floor-btn {
+      background: #2a2a4a; border: 1px solid #3a3a6a; color: #aaa;
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px;
+      padding: 6px 14px; border-radius: 8px; cursor: pointer; letter-spacing: 0.05em; transition: all 0.15s;
+    }
+    .floor-btn.active { background: var(--lime); color: var(--black); border-color: var(--lime); }
+
+    .unit-input-wrap { display: flex; align-items: center; gap: 8px; }
+    .unit-input-wrap label { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #aaa; white-space: nowrap; }
+    #nextUnit {
+      background: #2a2a4a; border: 2px solid #3a3a6a; border-radius: 8px;
+      color: var(--white); font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+      font-size: 20px; padding: 6px 14px; width: 120px; outline: none; letter-spacing: 0.05em;
+      transition: border-color 0.15s;
+    }
+    #nextUnit:focus { border-color: var(--lime); }
+
+    .btn {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px;
+      letter-spacing: 0.08em; text-transform: uppercase; border: none; border-radius: 8px;
+      padding: 8px 16px; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-lime { background: var(--lime); color: var(--black); }
+    .btn-lime:hover { background: #c8e600; }
+    .btn-red  { background: #ef4444; color: var(--white); }
+    .btn-red:hover { background: #dc2626; }
+    .btn-gray { background: #374151; color: var(--white); }
+    .btn-gray:hover { background: #4b5563; }
+
+    .status-bar {
+      background: #0f0f1e; border-bottom: 1px solid #2a2a4a; padding: 8px 16px;
+      display: flex; align-items: center; gap: 16px; font-size: 13px; flex-wrap: wrap;
+    }
+    .status-item { color: #aaa; }
+    .status-item span { color: var(--lime); font-weight: 600; }
+    #statusMsg { color: #facc15; font-weight: 600; }
+
+    .main { display: flex; flex: 1; min-height: 0; }
+
+    .map-panel { flex: 1; overflow: auto; position: relative; background: #0a0a18; }
+    .map-wrap { position: relative; display: inline-block; cursor: crosshair; }
+    #mapImg { display: block; max-width: none; }
+    #pinLayer { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+    .sidebar {
+      width: 320px; flex-shrink: 0; background: #13132a;
+      border-left: 1px solid #2a2a4a; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .sidebar-header {
+      padding: 12px 16px; border-bottom: 1px solid #2a2a4a;
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 14px;
+      letter-spacing: 0.1em; text-transform: uppercase; color: #aaa;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .badge { background: var(--lime); color: var(--black); font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 100px; }
+    .unit-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+    .unit-item {
+      background: #1e1e3a; border: 1px solid #2a2a4a; border-radius: 8px;
+      padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; gap: 8px;
+    }
+    .unit-item .uid { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 15px; color: var(--white); min-width: 56px; }
+    .unit-item .coords { color: #aaa; font-size: 12px; flex: 1; }
+    .unit-item .del-btn { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 14px; padding: 0 4px; opacity: 0.6; transition: opacity 0.15s; }
+    .unit-item .del-btn:hover { opacity: 1; }
+
+    .output-panel { border-top: 1px solid #2a2a4a; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .output-panel label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7280; }
+    #outputBox {
+      background: #0a0a18; border: 1px solid #2a2a4a; border-radius: 8px; color: #86efac;
+      font-family: 'Fira Code', 'Courier New', monospace; font-size: 11px; padding: 10px;
+      height: 140px; overflow-y: auto; resize: none; width: 100%;
+    }
+    .output-actions { display: flex; gap: 8px; }
+
+    .zoom-controls {
+      position: fixed; bottom: 20px; left: 20px;
+      display: flex; flex-direction: column; gap: 6px; z-index: 10;
+    }
+    .zoom-btn {
+      width: 40px; height: 40px; background: rgba(20,20,40,0.9);
+      border: 1px solid #3a3a6a; color: var(--white); font-size: 20px;
+      border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s; backdrop-filter: blur(6px);
+    }
+    .zoom-btn:hover { background: #2a2a4a; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">Unit Calibration — Kirkland</div>
+  <div style="font-size:12px;opacity:0.6;font-weight:600">Click on a unit to set its coordinates</div>
+</div>
+
+<div class="controls">
+  <div class="floor-btns" id="floorBtns"></div>
+
+  <div class="unit-input-wrap">
+    <label>Next unit:</label>
+    <input id="nextUnit" type="text" placeholder="B101" autocomplete="off">
+  </div>
+
+  <button class="btn btn-lime" id="skipBtn">Skip →</button>
+  <button class="btn btn-red"  id="undoBtn">↩ Undo</button>
+  <button class="btn btn-gray" id="clearFloorBtn">Clear Floor</button>
+
+  <div style="margin-left:auto;font-size:12px;color:#aaa;">
+    <kbd style="background:#2a2a4a;padding:2px 6px;border-radius:4px;font-size:11px">scroll</kbd> to zoom
+  </div>
+</div>
+
+<div class="status-bar">
+  <div class="status-item">Floor: <span id="sFloor">B</span></div>
+  <div class="status-item">Mapped: <span id="sMapped">0</span></div>
+  <div class="status-item">Last click: <span id="sCoords">—</span></div>
+  <div id="statusMsg"></div>
+</div>
+
+<div class="main">
+  <div class="map-panel" id="mapPanel">
+    <div class="map-wrap" id="mapWrap">
+      <img id="mapImg" draggable="false">
+      <canvas id="pinLayer"></canvas>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header">
+      Mapped Units
+      <span class="badge" id="countBadge">0</span>
+    </div>
+    <div class="unit-list" id="unitList"></div>
+    <div class="output-panel">
+      <label>Output — paste into index.html</label>
+      <textarea id="outputBox" readonly></textarea>
+      <div class="output-actions">
+        <button class="btn btn-lime" id="copyBtn" style="flex:1">Copy Code</button>
+        <button class="btn btn-gray" id="exportBtn">Export JSON</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="zoom-controls">
+  <button class="zoom-btn" id="zIn">+</button>
+  <button class="zoom-btn" id="zOut">−</button>
+  <button class="zoom-btn" id="zFit" title="Fit to window" style="font-size:14px">⊡</button>
+</div>
+
+<script>
+  const FLOORS = {
+    'B': { img: 'Kirkland Map/1.png', label: 'Basement' },
+    '1': { img: 'Kirkland Map/2.png', label: 'Floor 1'  },
+    '2': { img: 'Kirkland Map/3.png', label: 'Floor 2'  },
+    '3': { img: 'Kirkland Map/4.png', label: 'Floor 3'  },
+    '4': { img: 'Kirkland Map/5.png', label: 'Floor 4'  },
+  };
+
+  let activeFloor = 'B';
+  let scale = 1;
+  let mapped = {};
+  Object.keys(FLOORS).forEach(id => { mapped[id] = {}; });
+
+  // Load saved data
+  try { const s = localStorage.getItem('kirkland_units_v1'); if (s) { const d = JSON.parse(s); Object.keys(d).forEach(f => { if (mapped[f]) mapped[f] = d[f]; }); } } catch(e) {}
+
+  const $img      = document.getElementById('mapImg');
+  const $pins     = document.getElementById('pinLayer');
+  const $mapWrap  = document.getElementById('mapWrap');
+  const $mapPanel = document.getElementById('mapPanel');
+  const $next     = document.getElementById('nextUnit');
+  const $out      = document.getElementById('outputBox');
+  const $list     = document.getElementById('unitList');
+  const $count    = document.getElementById('countBadge');
+  const $sMapped  = document.getElementById('sMapped');
+  const $sCoords  = document.getElementById('sCoords');
+  const $sFloor   = document.getElementById('sFloor');
+  const $status   = document.getElementById('statusMsg');
+
+  // Build floor buttons
+  const $btns = document.getElementById('floorBtns');
+  Object.entries(FLOORS).forEach(([id, f], i) => {
+    const btn = document.createElement('button');
+    btn.className = 'floor-btn' + (i === 0 ? ' active' : '');
+    btn.dataset.floor = id;
+    btn.textContent = f.label;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.floor-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadFloor(id);
+    });
+    $btns.appendChild(btn);
+  });
+
+  function persist() {
+    try { localStorage.setItem('kirkland_units_v1', JSON.stringify(mapped)); } catch(e) {}
+  }
+
+  function loadFloor(id) {
+    activeFloor = id;
+    $sFloor.textContent = FLOORS[id].label;
+    $img.onload = () => { fitToWindow(); redrawPins(); renderList(); };
+    $img.src = FLOORS[id].img;
+  }
+
+  function applyScale(s, cx, cy) {
+    const panel = $mapPanel, prevScale = scale;
+    scale = Math.max(0.2, Math.min(6, s));
+    const W = $img.naturalWidth * scale, H = $img.naturalHeight * scale;
+    $img.style.width = W + 'px'; $img.style.height = H + 'px';
+    $pins.width = W; $pins.height = H;
+    $pins.style.width = W + 'px'; $pins.style.height = H + 'px';
+    redrawPins();
+    if (cx !== undefined) {
+      const ratio = scale / prevScale;
+      panel.scrollLeft = (panel.scrollLeft + cx) * ratio - cx;
+      panel.scrollTop  = (panel.scrollTop  + cy) * ratio - cy;
+    }
+  }
+
+  function fitToWindow() {
+    const pw = $mapPanel.clientWidth, ph = $mapPanel.clientHeight;
+    applyScale(Math.min(pw / $img.naturalWidth, ph / $img.naturalHeight) * 0.97);
+    $mapPanel.scrollLeft = 0; $mapPanel.scrollTop = 0;
+  }
+
+  $mapPanel.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = $mapPanel.getBoundingClientRect();
+    applyScale(scale * (e.deltaY < 0 ? 1.12 : 0.89), e.clientX - rect.left, e.clientY - rect.top);
+  }, { passive: false });
+
+  document.getElementById('zIn').addEventListener('click',  () => applyScale(scale * 1.3));
+  document.getElementById('zOut').addEventListener('click', () => applyScale(scale * 0.77));
+  document.getElementById('zFit').addEventListener('click', fitToWindow);
+
+  $mapWrap.addEventListener('click', e => {
+    const rect = $img.getBoundingClientRect();
+    const fx = (e.clientX - rect.left) / rect.width;
+    const fy = (e.clientY - rect.top)  / rect.height;
+    const uid = $next.value.trim();
+    if (!uid) { flash('⚠  Enter a unit number first'); return; }
+
+    mapped[activeFloor][uid] = [+fx.toFixed(4), +fy.toFixed(4)];
+    $sCoords.textContent = `[${fx.toFixed(3)}, ${fy.toFixed(3)}]`;
+    flash(`✓ Unit ${uid} → [${fx.toFixed(3)}, ${fy.toFixed(3)}]`);
+    persist();
+    redrawPins(); renderList(); generateOutput();
+    autoAdvance(uid);
+    $next.focus();
+  });
+
+  function autoAdvance(uid) {
+    const n = parseInt(uid.replace(/\D/g, ''), 10);
+    if (!isNaN(n)) {
+      const prefix = uid.replace(/\d+$/, '');
+      $next.value = prefix + (n + 1);
+    }
+  }
+
+  document.getElementById('skipBtn').addEventListener('click', () => {
+    const uid = $next.value.trim(); if (!uid) return;
+    autoAdvance(uid); flash(`→ Skipped ${uid}`); $next.focus();
+  });
+
+  document.getElementById('undoBtn').addEventListener('click', () => {
+    const keys = Object.keys(mapped[activeFloor]);
+    if (!keys.length) return;
+    const last = keys[keys.length - 1];
+    delete mapped[activeFloor][last];
+    $next.value = last;
+    persist(); redrawPins(); renderList(); generateOutput();
+    flash(`↩ Removed ${last}`);
+  });
+
+  document.getElementById('clearFloorBtn').addEventListener('click', () => {
+    if (!confirm(`Clear all units for ${FLOORS[activeFloor].label}?`)) return;
+    mapped[activeFloor] = {};
+    persist(); redrawPins(); renderList(); generateOutput();
+    flash(`Cleared ${FLOORS[activeFloor].label}`);
+  });
+
+  function redrawPins() {
+    const ctx = $pins.getContext('2d');
+    ctx.clearRect(0, 0, $pins.width, $pins.height);
+    const W = $img.naturalWidth * scale, H = $img.naturalHeight * scale;
+    Object.entries(mapped[activeFloor]).forEach(([uid, [fx, fy]]) => {
+      const px = fx * W, py = fy * H;
+      ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#ddfa00'; ctx.fill();
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.font = `bold ${Math.max(9, 11 * scale)}px "Barlow Condensed", sans-serif`;
+      ctx.fillStyle = '#111'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(uid, px, py);
+    });
+  }
+
+  function renderList() {
+    const units = mapped[activeFloor];
+    const count = Object.keys(units).length;
+    $count.textContent = count; $sMapped.textContent = count;
+    $list.innerHTML = '';
+    Object.entries(units).reverse().forEach(([uid, [fx, fy]]) => {
+      const div = document.createElement('div'); div.className = 'unit-item';
+      div.innerHTML = `<span class="uid">${uid}</span><span class="coords">[${fx.toFixed(3)}, ${fy.toFixed(3)}]</span><button class="del-btn" data-uid="${uid}" title="Remove">✕</button>`;
+      $list.appendChild(div);
+    });
+    $list.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        delete mapped[activeFloor][btn.dataset.uid];
+        persist(); renderList(); redrawPins(); generateOutput();
+      });
+    });
+  }
+
+  function generateOutput() {
+    let code = '';
+    Object.entries(FLOORS).forEach(([fid, f]) => {
+      code += `// ── ${f.label} ──\n`;
+      Object.entries(mapped[fid]).forEach(([uid, [x, y]]) => {
+        code += `  '${uid}': [${x}, ${y}],\n`;
+      });
+      code += '\n';
+    });
+    $out.value = code;
+  }
+
+  document.getElementById('copyBtn').addEventListener('click', () => {
+    navigator.clipboard.writeText($out.value).then(() => flash('✓ Copied to clipboard!'));
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(mapped, null, 2)], { type: 'application/json' });
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'kirkland-unit-coords.json' });
+    a.click();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.target === $next) return;
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) document.getElementById('undoBtn').click();
+  });
+
+  let flashTimer;
+  function flash(msg) {
+    $status.textContent = msg;
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => { $status.textContent = ''; }, 3000);
+  }
+
+  loadFloor('B');
+  $next.focus();
+</script>
+</body>
+</html>

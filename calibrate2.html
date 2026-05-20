@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pandora Kirkland — Corridor Calibration</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; background: #111; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+.brand-bar {
+  display: flex; align-items: center; gap: 12px;
+  background: #ddfa00; padding: 6px 14px; flex-shrink: 0;
+}
+.brand-name { font-weight: 900; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #111; line-height: 1.1; }
+.brand-sub  { font-size: 10px; font-weight: 600; color: rgba(0,0,0,0.5); letter-spacing: 0.12em; text-transform: uppercase; }
+
+.toolbar {
+  display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+  background: #1e1e1e; border-bottom: 2px solid #333; flex-shrink: 0; flex-wrap: wrap;
+}
+.toolbar button {
+  padding: 6px 12px; border: 1px solid #555; background: #2a2a2a; color: #eee;
+  border-radius: 5px; cursor: pointer; font-size: 13px; transition: background 0.1s;
+}
+.toolbar button:hover { background: #3a3a3a; }
+.toolbar button.active { background: #0055cc; border-color: #3399ff; color: #fff; }
+.toolbar button.danger { background: #550000; border-color: #cc2222; }
+.toolbar button.export { background: #004400; border-color: #00aa00; }
+.sep { width: 1px; height: 28px; background: #444; flex-shrink: 0; }
+.hint-box { background: #2a2200; border: 1px solid #665500; border-radius: 4px; padding: 4px 10px; font-size: 12px; color: #ddfa00; }
+.stats { font-size: 12px; color: #888; margin-left: auto; }
+
+.entrance-banner {
+  background: #003300; border-bottom: 2px solid #00cc44;
+  padding: 5px 14px; font-size: 12px; color: #00ee66; flex-shrink: 0; line-height: 1.5;
+}
+.entrance-banner b { color: #ddfa00; }
+
+.map-area { flex: 1; overflow-y: auto; overflow-x: hidden; background: #0a0a0a; }
+.map-wrapper { position: relative; width: 100%; }
+.map-wrapper img { display: block; width: 100%; height: auto; user-select: none; pointer-events: none; }
+.map-wrapper svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; }
+svg.mode-delete { cursor: not-allowed; }
+
+.instructions {
+  flex-shrink: 0; background: #1a1a1a; border-top: 1px solid #333;
+  padding: 6px 14px; font-size: 11px; color: #888; line-height: 1.7;
+}
+.instructions b { color: #ddfa00; }
+
+#output-area {
+  display: none; flex-shrink: 0; background: #0a0a0a; border-top: 2px solid #00aa00;
+  padding: 10px 14px; max-height: 200px; overflow-y: auto;
+}
+#output-area textarea {
+  width: 100%; height: 140px; background: #111; color: #0f0; font-family: monospace;
+  font-size: 10px; border: 1px solid #333; padding: 6px; resize: none;
+}
+</style>
+</head>
+<body>
+
+<div class="brand-bar">
+  <div>
+    <div class="brand-name">Pandora Self-Storage — Kirkland</div>
+    <div class="brand-sub">Corridor Calibration Tool</div>
+  </div>
+</div>
+
+<div class="entrance-banner">
+  ⭐ <b>Node 0 = Entrance / Elevator.</b> Your <b>first click</b> on each floor sets the starting point — place it at the elevator door or main entrance, then trace outward along every corridor.
+</div>
+
+<div class="toolbar">
+  <div id="floorBtns"></div>
+  <div class="sep"></div>
+  <button onclick="setMode('trace')" id="btn-trace" class="active">✏️ Trace</button>
+  <button onclick="setMode('delete')" id="btn-delete">🗑 Delete</button>
+  <div class="sep"></div>
+  <button onclick="undo()">↩ Undo</button>
+  <button onclick="clearFloor()" class="danger">🗑 Clear Floor</button>
+  <div class="sep"></div>
+  <button onclick="exportForIndex()" class="export">📋 Copy for index.html</button>
+  <div class="sep"></div>
+  <span class="hint-box" id="hint">Click along corridors to trace paths</span>
+  <span class="stats" id="stats"></span>
+</div>
+
+<div class="map-area" id="mapArea">
+  <div class="map-wrapper" id="mapWrapper">
+    <img id="floorImg" draggable="false">
+    <svg id="overlay"></svg>
+  </div>
+</div>
+
+<div class="instructions">
+  <b>Workflow:</b>
+  1. <b>First click</b> = entrance / elevator (green ★). Place it at the lift door.
+  &nbsp; 2. Keep clicking along corridor centres — nodes auto-connect to the previous one.
+  &nbsp; 3. <b>Click an existing node</b> to branch from it (cover every corridor arm).
+  &nbsp; 4. <b>Delete mode:</b> click a node to remove it + edges, or click near a line to remove that edge.
+  &nbsp; 5. When done: <b>Copy for index.html</b> → find <code>CORRIDOR_GRAPHS</code> → replace the whole object.
+  &nbsp;|&nbsp; <b>Ctrl+Z</b> = undo.
+</div>
+
+<div id="output-area">
+  <textarea id="outputText" readonly></textarea>
+</div>
+
+<script>
+const FLOORS = {
+  'B': { img: 'Kirkland Map/1-trace.png', label: 'Basement' },
+  '1': { img: 'Kirkland Map/2-trace.png', label: 'Floor 1'  },
+  '2': { img: 'Kirkland Map/3-trace.png', label: 'Floor 2'  },
+  '3': { img: 'Kirkland Map/4-trace.png', label: 'Floor 3'  },
+  '4': { img: 'Kirkland Map/5-trace.png', label: 'Floor 4'  },
+};
+
+let currentFloor = 'B';
+let mode = 'trace';
+let lastNode = null;
+
+let state = {};
+Object.keys(FLOORS).forEach(id => { state[id] = { nodes: [], edges: [] }; });
+let undoStack = [];
+
+try {
+  const saved = localStorage.getItem('kirkland_calib_v1');
+  if (saved) {
+    const d = JSON.parse(saved);
+    Object.keys(d).forEach(f => { if (state[f]) state[f] = d[f]; });
+  }
+} catch(e) {}
+
+function fs() { return state[currentFloor]; }
+function persist() { try { localStorage.setItem('kirkland_calib_v1', JSON.stringify(state)); } catch(e) {} }
+function pushUndo() { undoStack.push(JSON.stringify(state[currentFloor])); if (undoStack.length > 80) undoStack.shift(); }
+
+function undo() {
+  if (!undoStack.length) return;
+  state[currentFloor] = JSON.parse(undoStack.pop());
+  lastNode = null; persist(); render();
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+});
+
+// Build floor buttons
+const $floorBtns = document.getElementById('floorBtns');
+Object.entries(FLOORS).forEach(([id, f], i) => {
+  const btn = document.createElement('button');
+  btn.textContent = f.label;
+  btn.id = 'btn-f-' + id;
+  if (i === 0) btn.classList.add('active');
+  btn.addEventListener('click', () => setFloor(id));
+  $floorBtns.appendChild(btn);
+});
+
+function setFloor(f) {
+  currentFloor = f;
+  lastNode = null; undoStack = [];
+  Object.entries(FLOORS).forEach(([id]) => {
+    document.getElementById('btn-f-' + id).classList.toggle('active', id === f);
+  });
+  document.getElementById('floorImg').src = FLOORS[f].img;
+  render();
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-trace').classList.toggle('active', m === 'trace');
+  document.getElementById('btn-delete').classList.toggle('active', m === 'delete');
+  document.getElementById('overlay').className = m === 'delete' ? 'mode-delete' : '';
+  document.getElementById('hint').textContent = m === 'trace'
+    ? 'Click along corridors — auto-connects. Click existing node (yellow) to branch.'
+    : 'Click a node to remove it + edges. Click near a line to remove just that edge.';
+  if (m !== 'trace') lastNode = null;
+  render();
+}
+
+function clearFloor() {
+  if (!confirm(`Clear all nodes and edges on ${FLOORS[currentFloor].label}?`)) return;
+  pushUndo();
+  state[currentFloor] = { nodes: [], edges: [] };
+  lastNode = null; persist(); render();
+}
+
+function svgRect() { return document.getElementById('overlay').getBoundingClientRect(); }
+function toFrac(evt) { const r = svgRect(); return { x: (evt.clientX - r.left) / r.width, y: (evt.clientY - r.top) / r.height }; }
+
+function findNearestNode(fx, fy) {
+  const r = svgRect(), px = fx * r.width, py = fy * r.height, THRESH = 14;
+  let best = null, bestD = Infinity;
+  fs().nodes.forEach((n, i) => {
+    const d = Math.hypot(n.x * r.width - px, n.y * r.height - py);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return bestD < THRESH ? best : null;
+}
+
+function findNearestEdge(fx, fy) {
+  const r = svgRect(), px = fx * r.width, py = fy * r.height, THRESH = 12;
+  let best = null, bestD = Infinity;
+  const { nodes, edges } = fs();
+  edges.forEach(([a, b], i) => {
+    if (!nodes[a] || !nodes[b]) return;
+    const ax = nodes[a].x * r.width, ay = nodes[a].y * r.height;
+    const bx = nodes[b].x * r.width, by = nodes[b].y * r.height;
+    const d = ptSegDist(px, py, ax, ay, bx, by);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return bestD < THRESH ? best : null;
+}
+
+function ptSegDist(px, py, ax, ay, bx, by) {
+  const dx = bx-ax, dy = by-ay, lenSq = dx*dx+dy*dy;
+  if (!lenSq) return Math.hypot(px-ax, py-ay);
+  const t = Math.max(0, Math.min(1, ((px-ax)*dx+(py-ay)*dy)/lenSq));
+  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+}
+
+const svg = document.getElementById('overlay');
+
+svg.addEventListener('click', evt => {
+  evt.stopPropagation();
+  const { x, y } = toFrac(evt);
+  const d = fs();
+
+  if (mode === 'trace') {
+    const hit = findNearestNode(x, y);
+    if (hit !== null) { lastNode = hit; render(); return; }
+    pushUndo();
+    const idx = d.nodes.length;
+    d.nodes.push({ x, y });
+    if (lastNode !== null) d.edges.push([lastNode, idx]);
+    lastNode = idx;
+    persist(); render();
+
+  } else if (mode === 'delete') {
+    const hitNode = findNearestNode(x, y);
+    if (hitNode !== null) {
+      pushUndo();
+      d.edges = d.edges.filter(([a,b]) => a !== hitNode && b !== hitNode);
+      d.nodes.splice(hitNode, 1);
+      d.edges = d.edges.map(([a,b]) => [a > hitNode ? a-1 : a, b > hitNode ? b-1 : b]);
+      if (lastNode === hitNode) lastNode = null;
+      else if (lastNode !== null && lastNode > hitNode) lastNode--;
+      persist(); render(); return;
+    }
+    const hitEdge = findNearestEdge(x, y);
+    if (hitEdge !== null) { pushUndo(); d.edges.splice(hitEdge, 1); persist(); render(); }
+  }
+});
+
+let hoverLine = null;
+svg.addEventListener('mousemove', evt => {
+  const { x, y } = toFrac(evt);
+  if (!hoverLine) return;
+  const r = svgRect();
+  if (mode === 'trace' && lastNode !== null) {
+    const n = fs().nodes[lastNode];
+    hoverLine.setAttribute('x1', n.x * r.width); hoverLine.setAttribute('y1', n.y * r.height);
+    hoverLine.setAttribute('x2', x * r.width);   hoverLine.setAttribute('y2', y * r.height);
+    hoverLine.style.display = '';
+  } else { hoverLine.style.display = 'none'; }
+});
+svg.addEventListener('mouseleave', () => { if (hoverLine) hoverLine.style.display = 'none'; });
+
+function render() {
+  const r = svgRect(), W = r.width, H = r.height;
+  const { nodes, edges } = fs();
+  svg.innerHTML = '';
+
+  hoverLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  hoverLine.setAttribute('stroke', 'rgba(255,220,60,0.35)');
+  hoverLine.setAttribute('stroke-width', '2');
+  hoverLine.setAttribute('stroke-dasharray', '6,4');
+  hoverLine.style.display = 'none';
+  hoverLine.style.pointerEvents = 'none';
+  svg.appendChild(hoverLine);
+
+  edges.forEach(([a, b]) => {
+    if (!nodes[a] || !nodes[b]) return;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', nodes[a].x * W); line.setAttribute('y1', nodes[a].y * H);
+    line.setAttribute('x2', nodes[b].x * W); line.setAttribute('y2', nodes[b].y * H);
+    line.setAttribute('stroke', '#ffcc44'); line.setAttribute('stroke-width', '2.5'); line.setAttribute('stroke-opacity', '0.75');
+    svg.appendChild(line);
+  });
+
+  nodes.forEach((node, i) => {
+    const cx = node.x * W, cy = node.y * H;
+    const isLast = i === lastNode, isEntrance = i === 0;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.style.pointerEvents = 'none';
+
+    if (isEntrance) {
+      const star = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      star.setAttribute('cx', cx); star.setAttribute('cy', cy); star.setAttribute('r', 10);
+      star.setAttribute('fill', 'rgba(0,200,100,0.3)'); star.setAttribute('stroke', '#00cc66'); star.setAttribute('stroke-width', '2');
+      g.appendChild(star);
+    }
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', cx); circle.setAttribute('cy', cy); circle.setAttribute('r', isLast ? 7 : 5);
+    circle.setAttribute('fill', isLast ? '#ff5500' : isEntrance ? '#00ee66' : 'rgba(255,200,0,0.9)');
+    circle.setAttribute('stroke', '#000'); circle.setAttribute('stroke-width', '1.5');
+    g.appendChild(circle);
+
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', cx); label.setAttribute('y', cy);
+    label.setAttribute('text-anchor', 'middle'); label.setAttribute('dominant-baseline', 'central');
+    label.setAttribute('font-size', '7'); label.setAttribute('font-weight', 'bold'); label.setAttribute('fill', '#000');
+    label.textContent = isEntrance ? '★' : i;
+    g.appendChild(label);
+    svg.appendChild(g);
+  });
+
+  document.getElementById('stats').textContent =
+    `${FLOORS[currentFloor].label}: ${nodes.length} nodes · ${edges.length} edges`;
+}
+
+function fmtNodes(nodes) {
+  if (!nodes.length) return '        []';
+  const rows = [];
+  for (let i = 0; i < nodes.length; i += 6) {
+    const chunk = nodes.slice(i, i+6).map(n => `[${n.x.toFixed(4)},${n.y.toFixed(4)}]`).join(', ');
+    rows.push('        ' + chunk);
+  }
+  return rows.join(',\n');
+}
+
+function fmtEdges(edges) {
+  if (!edges.length) return '        []';
+  const rows = [];
+  for (let i = 0; i < edges.length; i += 10) {
+    const chunk = edges.slice(i, i+10).map(([a,b]) => `[${a},${b}]`).join(', ');
+    rows.push('        ' + chunk);
+  }
+  return rows.join(',\n');
+}
+
+function exportForIndex() {
+  let out = `  const CORRIDOR_GRAPHS = {\n`;
+  Object.keys(FLOORS).forEach(f => {
+    const { nodes, edges } = state[f];
+    out += `    '${f}': {\n`;
+    out += `      entrance: 0,\n`;
+    out += `      nodes: [\n${fmtNodes(nodes)},\n      ],\n`;
+    out += `      edges: [\n${fmtEdges(edges)},\n      ],\n`;
+    out += `    },\n`;
+  });
+  out += `  };`;
+
+  document.getElementById('outputText').value = out;
+  document.getElementById('output-area').style.display = 'block';
+
+  navigator.clipboard.writeText(out)
+    .then(() => alert('✓ Copied!\n\nIn index.html find:\n  const CORRIDOR_GRAPHS = ...\nand replace the whole object (down to the closing };) with what you just copied.'))
+    .catch(() => alert('Copy the text from the box below.'));
+}
+
+const img = document.getElementById('floorImg');
+img.onload = render;
+new ResizeObserver(render).observe(document.getElementById('mapWrapper'));
+setFloor('B');
+</script>
+</body>
+</html>

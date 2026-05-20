@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pandora Kirkland — Unit Placer</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #111; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+.brand-bar {
+  display: flex; align-items: center; gap: 12px;
+  background: #ddfa00; padding: 6px 14px; flex-shrink: 0;
+}
+.brand-name { font-family: 'Segoe UI', sans-serif; font-weight: 900; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #111; line-height: 1.1; }
+.brand-sub { font-size: 10px; font-weight: 600; color: rgba(0,0,0,0.5); letter-spacing: 0.12em; text-transform: uppercase; }
+
+.toolbar {
+  display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+  background: #1e1e1e; border-bottom: 2px solid #333; flex-shrink: 0; flex-wrap: wrap;
+}
+.toolbar button { padding: 5px 11px; border: 1px solid #555; background: #2a2a2a; color: #eee; border-radius: 5px; cursor: pointer; font-size: 12px; }
+.toolbar button:hover { background: #3a3a3a; }
+.toolbar button.danger { background: #550000; border-color: #cc2222; }
+.toolbar button.export { background: #004400; border-color: #00aa00; }
+.toolbar button.active { background: #0055cc; border-color: #3399ff; }
+.toolbar label { font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+.toolbar input[type=checkbox] { accent-color: #ddfa00; }
+.sep { width: 1px; height: 26px; background: #444; flex-shrink: 0; }
+.stats { font-size: 11px; color: #888; margin-left: auto; }
+
+.main { flex: 1; display: flex; overflow: hidden; }
+
+.sidebar {
+  width: 100px; flex-shrink: 0; background: #161616; border-right: 1px solid #2a2a2a;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar-search { padding: 6px; flex-shrink: 0; border-bottom: 1px solid #2a2a2a; }
+.sidebar-search input { width: 100%; padding: 4px 6px; background: #222; border: 1px solid #444; color: #eee; border-radius: 4px; font-size: 11px; outline: none; }
+.sidebar-search input:focus { border-color: #ddfa00; }
+.unit-list { flex: 1; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 3px; }
+.unit-chip { padding: 4px 6px; background: #252525; border: 1px solid #444; border-radius: 4px; font-size: 11px; color: #ccc; cursor: grab; text-align: center; user-select: none; transition: background 0.1s; }
+.unit-chip:hover { background: #333; border-color: #ddfa00; color: #ddfa00; }
+.unit-chip.dragging { opacity: 0.4; }
+.no-units { font-size: 10px; color: #555; text-align: center; padding: 10px 4px; }
+.custom-unit { padding: 6px; flex-shrink: 0; border-top: 1px solid #2a2a2a; display: flex; gap: 4px; }
+.custom-unit input { flex: 1; min-width: 0; padding: 4px 6px; background: #222; border: 1px solid #444; color: #eee; border-radius: 4px; font-size: 11px; outline: none; font-family: monospace; }
+.custom-unit input:focus { border-color: #ddfa00; }
+.custom-unit button { padding: 4px 8px; background: #ddfa00; color: #111; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.custom-unit button:hover { background: #c8e000; }
+
+.map-area { flex: 1; overflow: auto; background: #0a0a0a; }
+.map-wrapper { position: relative; min-width: 100%; }
+.map-wrapper img { display: block; width: 100%; height: auto; user-select: none; pointer-events: none; }
+.map-wrapper svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.map-wrapper svg.drag-over { outline: 2px dashed #ddfa00; }
+
+#output-area { display: none; flex-shrink: 0; background: #0a0a0a; border-top: 2px solid #00aa00; padding: 8px 12px; max-height: 160px; overflow-y: auto; }
+#output-area textarea { width: 100%; height: 120px; background: #111; color: #0f0; font-family: monospace; font-size: 10px; border: 1px solid #333; padding: 5px; resize: none; }
+.hint { font-size: 11px; color: #666; padding: 4px 12px; background: #191919; border-top: 1px solid #2a2a2a; flex-shrink: 0; }
+.hint b { color: #ddfa00; }
+</style>
+</head>
+<body>
+
+<div class="brand-bar">
+  <div>
+    <div class="brand-name">Pandora Self-Storage — Kirkland</div>
+    <div class="brand-sub">Unit Map Editor</div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div id="floorBtns"></div>
+  <div class="sep"></div>
+  <button onclick="undo()">↩ Undo</button>
+  <button onclick="clearFloor()" class="danger">🗑 Clear Units</button>
+  <div class="sep"></div>
+  <label title="Show corridor calibration graph">
+    <input type="checkbox" id="showCalib" checked onchange="render()"> Calib. Graph
+  </label>
+  <label title="Show unit labels">
+    <input type="checkbox" id="showUnits" checked onchange="render()"> Units
+  </label>
+  <div class="sep"></div>
+  <button onclick="exportJS()" class="export">📋 Copy JS</button>
+  <span class="stats" id="stats"></span>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-search">
+      <input id="search" type="search" placeholder="Filter…" oninput="renderSidebar()">
+    </div>
+    <div class="unit-list" id="unit-list"></div>
+    <div class="custom-unit">
+      <input id="customId" type="text" placeholder="B101" maxlength="8" spellcheck="false">
+      <button onclick="activateCustom()">+</button>
+    </div>
+  </div>
+
+  <div class="map-area" id="mapArea">
+    <div class="map-wrapper" id="mapWrapper">
+      <img id="floorImg" draggable="false">
+      <svg id="overlay"></svg>
+    </div>
+  </div>
+</div>
+
+<div class="hint">
+  <b>Drag</b> a unit from the left onto the map. &nbsp;·&nbsp;
+  <b>Drag</b> a placed node to reposition it. &nbsp;·&nbsp;
+  <b>Double-click</b> a placed node to unplace it. &nbsp;·&nbsp;
+  <b>Ctrl+Z</b> undo. &nbsp;·&nbsp;
+  Add new unit IDs with the <b>+</b> button, then click on the map.
+</div>
+
+<div id="output-area">
+  <textarea id="outputText" readonly></textarea>
+</div>
+
+<script>
+const FLOORS = {
+  'B': { img: 'Kirkland Map/1.png', label: 'Basement' },
+  '1': { img: 'Kirkland Map/2.png', label: 'Floor 1'  },
+  '2': { img: 'Kirkland Map/3.png', label: 'Floor 2'  },
+  '3': { img: 'Kirkland Map/4.png', label: 'Floor 3'  },
+  '4': { img: 'Kirkland Map/5.png', label: 'Floor 4'  },
+};
+
+// Known unit lists per floor — add unit IDs here once you know them
+// You can also use the + button in the sidebar to add any unit ID
+const FLOOR_UNITS = {
+  'B': [], '1': [], '2': [], '3': [], '4': [],
+};
+
+let currentFloor = 'B';
+let state = {};
+Object.keys(FLOORS).forEach(id => { state[id] = {}; });
+let calibData = {};
+Object.keys(FLOORS).forEach(id => { calibData[id] = { nodes: [], edges: [] }; });
+let undoStack = [];
+
+try { const s = localStorage.getItem('kirkland_units_v1'); if (s) { const d = JSON.parse(s); Object.keys(d).forEach(f => { if (state[f]) state[f] = d[f]; }); } } catch(e) {}
+
+function loadCalibData() {
+  try {
+    const s = localStorage.getItem('kirkland_calib_v1');
+    if (s) { const d = JSON.parse(s); Object.keys(d).forEach(f => { if (calibData[f]) calibData[f] = d[f]; }); }
+  } catch(e) {}
+}
+loadCalibData();
+
+function persist() { try { localStorage.setItem('kirkland_units_v1', JSON.stringify(state)); } catch(e) {} }
+function pushUndo() { undoStack.push(JSON.stringify(state[currentFloor])); if (undoStack.length > 80) undoStack.shift(); }
+
+function undo() { if (!undoStack.length) return; state[currentFloor] = JSON.parse(undoStack.pop()); persist(); render(); renderSidebar(); }
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); } });
+
+// Build floor buttons
+const $floorBtns = document.getElementById('floorBtns');
+Object.entries(FLOORS).forEach(([id, f], i) => {
+  const btn = document.createElement('button');
+  btn.textContent = f.label; btn.id = 'btn-f-' + id;
+  if (i === 0) btn.classList.add('active');
+  btn.addEventListener('click', () => setFloor(id));
+  $floorBtns.appendChild(btn);
+});
+
+function setFloor(f) {
+  currentFloor = f; undoStack = [];
+  Object.entries(FLOORS).forEach(([id]) => document.getElementById('btn-f-' + id).classList.toggle('active', id === f));
+  document.getElementById('floorImg').src = FLOORS[f].img;
+  document.getElementById('search').value = '';
+  loadCalibData(); render(); renderSidebar();
+}
+
+function clearFloor() {
+  if (!confirm(`Clear all placed units on ${FLOORS[currentFloor].label}?`)) return;
+  pushUndo(); state[currentFloor] = {}; persist(); render(); renderSidebar();
+}
+
+function svgRect() { return document.getElementById('overlay').getBoundingClientRect(); }
+function toFrac(e) { const r = svgRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
+
+let draggingChipId = null;
+
+function renderSidebar() {
+  const placed = new Set(Object.keys(state[currentFloor]));
+  const filter = document.getElementById('search').value.toLowerCase();
+  const all = FLOOR_UNITS[currentFloor] || [];
+  const list = document.getElementById('unit-list');
+  list.innerHTML = '';
+
+  // Include placed units not in the master list (added via + button)
+  const allIds = [...new Set([...all, ...Object.keys(state[currentFloor])])];
+  const unplaced = allIds.filter(id => !placed.has(id) && id.toLowerCase().includes(filter));
+
+  if (!unplaced.length) {
+    const msg = document.createElement('div'); msg.className = 'no-units';
+    msg.textContent = placed.size > 0 ? 'All placed!' : 'Add units with +'; list.appendChild(msg);
+  } else {
+    unplaced.forEach(id => {
+      const chip = document.createElement('div'); chip.className = 'unit-chip'; chip.textContent = id; chip.draggable = true; chip.dataset.unit = id;
+      chip.addEventListener('dragstart', e => { draggingChipId = id; chip.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); });
+      chip.addEventListener('dragend', () => { chip.classList.remove('dragging'); draggingChipId = null; });
+      list.appendChild(chip);
+    });
+  }
+
+  const total = allIds.length;
+  document.getElementById('stats').textContent = `${FLOORS[currentFloor].label}: ${placed.size}/${total} placed`;
+}
+
+let pendingCustomId = null;
+function activateCustom() {
+  const val = document.getElementById('customId').value.trim(); if (!val) return;
+  pendingCustomId = val;
+  document.getElementById('overlay').style.cursor = 'crosshair';
+  document.getElementById('customId').style.borderColor = '#ddfa00';
+}
+document.getElementById('customId').addEventListener('keydown', e => {
+  if (e.key === 'Enter') activateCustom();
+  if (e.key === 'Escape') { pendingCustomId = null; document.getElementById('overlay').style.cursor = ''; }
+});
+
+const svg = document.getElementById('overlay');
+
+svg.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; svg.classList.add('drag-over'); });
+svg.addEventListener('dragleave', () => svg.classList.remove('drag-over'));
+svg.addEventListener('drop', e => {
+  e.preventDefault(); svg.classList.remove('drag-over');
+  const id = e.dataTransfer.getData('text/plain'); if (!id) return;
+  pushUndo(); const [fx, fy] = toFrac(e); state[currentFloor][id] = [fx, fy]; persist(); render(); renderSidebar();
+});
+
+svg.addEventListener('click', e => {
+  if (!pendingCustomId) return;
+  e.stopPropagation();
+  const id = pendingCustomId; pendingCustomId = null;
+  svg.style.cursor = ''; document.getElementById('customId').style.borderColor = ''; document.getElementById('customId').value = '';
+  pushUndo(); const [fx, fy] = toFrac(e); state[currentFloor][id] = [fx, fy]; persist(); render(); renderSidebar();
+});
+
+let activeNode = null, lastClickTime = {};
+svg.addEventListener('pointerdown', e => {
+  if (draggingChipId) return;
+  const [fx, fy] = toFrac(e); const hit = hitTest(fx, fy); if (!hit) return;
+  e.preventDefault(); svg.setPointerCapture(e.pointerId); activeNode = hit;
+  const now = Date.now();
+  if (lastClickTime[hit] && now - lastClickTime[hit] < 300) {
+    pushUndo(); delete state[currentFloor][hit]; persist(); render(); renderSidebar(); activeNode = null; return;
+  }
+  lastClickTime[hit] = now;
+});
+svg.addEventListener('pointermove', e => { if (!activeNode) return; const [fx, fy] = toFrac(e); state[currentFloor][activeNode] = [fx, fy]; render(); });
+svg.addEventListener('pointerup', () => { if (activeNode) { persist(); activeNode = null; } });
+
+function hitTest(fx, fy) {
+  const r = svgRect(), px = fx * r.width, py = fy * r.height, THRESH = 12;
+  let best = null, bestD = Infinity;
+  Object.entries(state[currentFloor]).forEach(([id, [ux, uy]]) => {
+    const d = Math.hypot(ux * r.width - px, uy * r.height - py);
+    if (d < THRESH && d < bestD) { bestD = d; best = id; }
+  });
+  return best;
+}
+
+function render() {
+  const r = svgRect(), W = r.width, H = r.height;
+  svg.innerHTML = '';
+  const showCalib = document.getElementById('showCalib').checked;
+  const showUnits = document.getElementById('showUnits').checked;
+
+  if (showCalib) {
+    const cd = calibData[currentFloor] || { nodes: [], edges: [] };
+    cd.edges.forEach(([a, b]) => {
+      if (!cd.nodes[a] || !cd.nodes[b]) return;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', cd.nodes[a].x * W); line.setAttribute('y1', cd.nodes[a].y * H);
+      line.setAttribute('x2', cd.nodes[b].x * W); line.setAttribute('y2', cd.nodes[b].y * H);
+      line.setAttribute('stroke', 'rgba(221,250,0,0.5)'); line.setAttribute('stroke-width', '2'); line.setAttribute('stroke-dasharray', '4,3');
+      line.style.pointerEvents = 'none'; svg.appendChild(line);
+    });
+    cd.nodes.forEach((n, i) => {
+      const cx = n.x * W, cy = n.y * H, isEntrance = i === 0;
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.style.pointerEvents = 'none';
+      if (isEntrance) {
+        const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        ring.setAttribute('cx', cx); ring.setAttribute('cy', cy); ring.setAttribute('r', 9);
+        ring.setAttribute('fill', 'rgba(0,200,100,0.25)'); ring.setAttribute('stroke', '#00cc66'); ring.setAttribute('stroke-width', '1.5');
+        g.appendChild(ring);
+      }
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('r', isEntrance ? 5 : 3.5);
+      dot.setAttribute('fill', isEntrance ? '#00ee66' : 'rgba(221,250,0,0.85)'); dot.setAttribute('stroke', '#000'); dot.setAttribute('stroke-width', '1');
+      g.appendChild(dot);
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      lbl.setAttribute('x', cx + 5); lbl.setAttribute('y', cy - 4);
+      lbl.setAttribute('font-size', '6'); lbl.setAttribute('font-weight', 'bold');
+      lbl.setAttribute('fill', isEntrance ? '#00ee66' : '#ddfa00'); lbl.setAttribute('stroke', '#000'); lbl.setAttribute('stroke-width', '0.4'); lbl.setAttribute('paint-order', 'stroke');
+      lbl.textContent = isEntrance ? '★' : i;
+      g.appendChild(lbl); svg.appendChild(g);
+    });
+  }
+
+  if (showUnits) {
+    Object.entries(state[currentFloor]).forEach(([id, [fx, fy]]) => {
+      const cx = fx * W, cy = fy * H, isDragging = id === activeNode;
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.style.pointerEvents = 'none';
+      if (isDragging) {
+        const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        ring.setAttribute('cx', cx); ring.setAttribute('cy', cy); ring.setAttribute('r', 10);
+        ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', '#ff5500'); ring.setAttribute('stroke-width', '2');
+        g.appendChild(ring);
+      }
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('r', isDragging ? 5 : 3.5);
+      dot.setAttribute('fill', isDragging ? '#ff5500' : '#fff'); dot.setAttribute('stroke', isDragging ? '#ff5500' : '#111'); dot.setAttribute('stroke-width', '1');
+      g.appendChild(dot);
+      const textW = id.length * 5.2 + 8;
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', cx - textW/2); rect.setAttribute('y', cy - 16); rect.setAttribute('width', textW); rect.setAttribute('height', 13); rect.setAttribute('rx', 3);
+      rect.setAttribute('fill', isDragging ? 'rgba(80,20,0,0.92)' : 'rgba(0,0,0,0.82)'); rect.setAttribute('stroke', isDragging ? '#ff5500' : '#ddfa00'); rect.setAttribute('stroke-width', '1');
+      g.appendChild(rect);
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', cx); text.setAttribute('y', cy - 9.5); text.setAttribute('text-anchor', 'middle'); text.setAttribute('dominant-baseline', 'central');
+      text.setAttribute('font-size', '7'); text.setAttribute('font-weight', 'bold'); text.setAttribute('fill', isDragging ? '#ff9966' : '#ddfa00');
+      text.textContent = id; g.appendChild(text); svg.appendChild(g);
+    });
+  }
+}
+
+function exportJS() {
+  const lines = [];
+  Object.entries(FLOORS).forEach(([fid, f]) => {
+    lines.push(`  // ── ${f.label} ──`);
+    Object.entries(state[fid]).forEach(([id, [x, y]]) => {
+      lines.push(`    '${id}': [${x.toFixed(4)}, ${y.toFixed(4)}],`);
+    });
+    lines.push('');
+  });
+  const text = lines.join('\n');
+  document.getElementById('outputText').value = text;
+  document.getElementById('output-area').style.display = 'block';
+  navigator.clipboard.writeText(text)
+    .then(() => alert('✓ Copied! Replace the unit coordinate blocks in index.html.'))
+    .catch(() => alert('See the box below — copy manually.'));
+}
+
+const floorImg = document.getElementById('floorImg');
+floorImg.onload = render;
+new ResizeObserver(render).observe(document.getElementById('mapWrapper'));
+setFloor('B');
+renderSidebar();
+</script>
+</body>
+</html>
