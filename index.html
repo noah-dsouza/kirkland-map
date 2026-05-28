@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>Pandora Mini-Entrepôts — Kirkland</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --black: #0d0d0d;
+      --white: #ffffff;
+      --lime: #c8f000;
+      --surface: #1c1c1c;
+      --border: #2a2a2a;
+      --muted: #888888;
+      --ink: #ffffff;
+      --card-bg: #161616;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--black);
+      color: var(--ink);
+      font-family: 'Barlow', sans-serif;
+      min-height: 100vh;
+    }
+    body.lang-fr [data-lang="en"] { display: none !important; }
+    body.lang-en [data-lang="fr"] { display: none !important; }
+
+    .topbar {
+      background: #111;
+      border-bottom: 1px solid var(--border);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      padding: 10px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      gap: 1px;
+      color: var(--white);
+    }
+    .topbar-brand { line-height: 1.1; color: var(--lime); }
+    .topbar-location { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; opacity: 0.5; color: var(--white); }
+    .lang-toggle {
+      position: absolute;
+      right: 16px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 3px;
+      cursor: pointer;
+      font-family: 'Barlow Condensed', sans-serif;
+      display: flex;
+      align-items: center;
+      transition: background 0.2s;
+    }
+    .lang-toggle:hover { background: rgba(255,255,255,0.12); }
+    .lang-opt {
+      font-weight: 800;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 100px;
+      color: var(--white);
+      opacity: 0.4;
+      letter-spacing: 0.05em;
+      user-select: none;
+      pointer-events: none;
+      transition: all 0.2s;
+    }
+    .lang-opt.active { background: var(--lime); color: var(--black); opacity: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+
+    .page-wrapper {
+      max-width: 640px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 32px 16px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 28px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .card:nth-child(1) { animation-delay: 0s; }
+    .card:nth-child(2) { animation-delay: 0.07s; }
+    .card:nth-child(3) { animation-delay: 0.14s; }
+    .card:nth-child(4) { animation-delay: 0.21s; }
+
+    .hero-card {
+      padding: 36px 32px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .hero-eyebrow {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--lime);
+      background: rgba(200,240,0,0.12);
+      border: 1px solid rgba(200,240,0,0.25);
+      padding: 7px 16px;
+      border-radius: 100px;
+    }
+    h1 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: clamp(38px, 11vw, 64px);
+      line-height: 0.95;
+      text-transform: uppercase;
+      color: var(--white);
+    }
+    .lime-word { color: var(--lime); }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      max-width: 320px;
+    }
+    .input-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .input-row { display: flex; width: 100%; gap: 8px; align-items: stretch; }
+    #unitInput {
+      flex: 1;
+      min-width: 0;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 26px;
+      color: var(--white);
+      outline: none;
+      text-align: center;
+      letter-spacing: 0.04em;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    #unitInput::placeholder { color: #444; font-weight: 700; }
+    #unitInput:focus { border-color: var(--lime); background: #222; }
+    #unitInput.error { border-color: #f87171; background: rgba(248,113,113,0.08); animation: shake 0.35s ease; }
+    #findBtn {
+      background: var(--lime);
+      color: var(--black);
+      border: none;
+      border-radius: 14px;
+      padding: 0 22px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 15px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      align-self: stretch;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #findBtn:hover { background: var(--white); color: var(--black); }
+    #findBtn:active { transform: scale(0.96); }
+    .input-feedback { font-size: 13px; color: #ef4444; font-weight: 500; min-height: 18px; }
+
+    .office-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      background: rgba(200,240,0,0.1);
+      border: 1.5px solid rgba(200,240,0,0.3);
+      border-radius: 100px;
+      padding: 9px 20px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--lime);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .office-btn:hover { background: rgba(200,240,0,0.18); border-color: var(--lime); }
+    .office-btn:active { transform: scale(0.96); }
+    .office-btn svg { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
+
+    .result-card {
+      display: none;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--lime);
+      border-radius: 28px;
+      padding: 22px 28px;
+      flex-direction: column;
+      gap: 3px;
+      animation: fadeUp 0.35s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .result-card.show { display: flex; }
+    .result-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--lime);
+    }
+    .result-main {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 30px;
+      text-transform: uppercase;
+      color: var(--white);
+      line-height: 1.05;
+    }
+    .result-dir { font-size: 14px; font-weight: 500; color: var(--muted); margin-top: 6px; line-height: 1.55; }
+
+    .map-card { padding: 24px 20px 16px; }
+    .map-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .map-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 26px;
+      text-transform: uppercase;
+      color: var(--white);
+    }
+    .floor-switch {
+      background: rgba(255,255,255,0.06);
+      border-radius: 100px;
+      display: flex;
+      padding: 3px;
+      gap: 2px;
+    }
+    .floor-btn {
+      background: transparent;
+      border: none;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 100px;
+      cursor: pointer;
+      color: var(--white);
+      opacity: 0.4;
+      transition: all 0.2s;
+      letter-spacing: 0.05em;
+    }
+    .floor-btn.active { background: var(--lime); color: var(--black); opacity: 1; box-shadow: 0 2px 6px rgba(200,240,0,0.3); }
+
+    .map-viewport {
+      position: relative;
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1.5px solid var(--border);
+      touch-action: none;
+      cursor: grab;
+      background: #111;
+    }
+    .map-viewport:active { cursor: grabbing; }
+    #mapImg { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+    #mapPanLayer { position: relative; width: 100%; line-height: 0; }
+    #mapCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    .map-hint {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .help-card {
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 14px;
+    }
+    .help-label { font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+    .btn-phone {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--lime);
+      color: var(--black);
+      text-decoration: none;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: clamp(20px, 6vw, 30px);
+      padding: 14px 32px;
+      border-radius: 100px;
+      transition: all 0.25s;
+      box-shadow: 0 10px 28px rgba(200,240,0,0.2);
+    }
+    .btn-phone:hover { background: var(--white); color: var(--black); transform: translateY(-3px); }
+    .btn-phone svg { width: 22px; height: 22px; fill: currentColor; flex-shrink: 0; }
+    .help-hours { font-size: 14px; color: var(--muted); font-weight: 500; line-height: 1.6; }
+
+    footer {
+      padding: 8px 0 40px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    footer a { color: inherit; text-decoration: none; }
+    footer a:hover { color: var(--lime); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%,60% { transform: translateX(-5px); }
+      40%,80% { transform: translateX(5px); }
+    }
+    @media (max-width: 400px) {
+      .hero-card { padding: 28px 18px; }
+      .map-card  { padding: 18px 12px 12px; }
+      .help-card { padding: 24px 18px; }
+    }
+  </style>
+</head>
+<body class="lang-fr">
+
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span data-lang="en">Pandora Mini Storage</span>
+      <span data-lang="fr">Pandora Mini-Entrepôts</span>
+    </div>
+    <div class="topbar-location">Kirkland</div>
+    <button class="lang-toggle" id="langToggle" type="button" aria-label="Toggle language">
+      <span class="lang-opt active" id="langFr">FR</span>
+      <span class="lang-opt"        id="langEn">EN</span>
+    </button>
+  </div>
+
+  <div class="page-wrapper">
+
+    <div class="card hero-card">
+      <div class="hero-eyebrow">
+        <span data-lang="en">Wayfinding</span>
+        <span data-lang="fr">Orientation</span>
+      </div>
+      <h1>
+        <span data-lang="en">Find your<br><span class="lime-word">unit</span></span>
+        <span data-lang="fr">Trouver votre<br><span class="lime-word">unité</span></span>
+      </h1>
+      <div class="input-group">
+        <div class="input-label">
+          <span data-lang="en">Enter your unit number</span>
+          <span data-lang="fr">Entrez votre numéro d'unité</span>
+        </div>
+        <div class="input-row">
+          <input id="unitInput" type="text" inputmode="numeric" maxlength="8"
+                 placeholder="101" autocomplete="off" spellcheck="false">
+          <button id="findBtn" type="button">
+            <span data-lang="en">GO</span>
+            <span data-lang="fr">OK</span>
+          </button>
+        </div>
+        <div class="input-feedback" id="inputFeedback" aria-live="polite"></div>
+      </div>
+      <button class="office-btn" id="officeBtn" type="button">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        <span data-lang="en">Find the Office</span>
+        <span data-lang="fr">Trouver le Bureau</span>
+      </button>
+    </div>
+
+    <div class="result-card" id="resultCard" role="status" aria-live="polite">
+      <div class="result-label" id="resultLabel"></div>
+      <div class="result-main"  id="resultMain"></div>
+      <div class="result-dir"   id="resultDir"></div>
+    </div>
+
+    <div class="card map-card">
+      <div class="map-header">
+        <div class="map-title" id="mapTitle">Étage 1</div>
+        <div class="floor-switch" id="floorSwitch"></div>
+      </div>
+      <div class="map-viewport" id="mapViewport">
+        <div id="mapPanLayer">
+          <img id="mapImg" alt="" draggable="false">
+          <canvas id="mapCanvas"></canvas>
+        </div>
+      </div>
+      <p class="map-hint">
+        <span data-lang="en">Pinch or scroll to zoom · Drag to pan</span>
+        <span data-lang="fr">Pincez pour zoomer · Glissez pour déplacer</span>
+      </p>
+    </div>
+
+    <div class="card help-card">
+      <div class="help-label" data-lang="en">Need extra help?</div>
+      <div class="help-label" data-lang="fr">Besoin d'aide ?</div>
+      <a href="tel:+15149995555" class="btn-phone">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+        </svg>
+        (514) 999-5555
+      </a>
+      <div class="help-hours" data-lang="en">
+        Access hours: 5 AM – 10 PM daily<br>Office: Mon–Fri 10 AM – 6 PM · Sat–Sun 10 AM – 5 PM
+      </div>
+      <div class="help-hours" data-lang="fr">
+        Accès : 5h – 22h tous les jours<br>Bureau : lun–ven 10h – 18h · sam–dim 10h – 17h
+      </div>
+    </div>
+
+    <footer>
+      <a href="https://pandoramini.com" target="_blank" rel="noopener">pandoramini.com</a>
+    </footer>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
+  <script>
+  // ─────────────────────────────────────────────────────────────────────────
+  // UNIT COORDINATE DATABASE
+  // All positions are [x, y] as fractions (0–1) of each floor image.
+  // Use calibrate.html to generate these values, then paste them here.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Basement units ──
+  const FB = {
+    // e.g. 'B101': [0.25, 0.30],
+  };
+
+  // ── Floor 1 units ──
+  const F1 = {
+    // e.g. '101': [0.45, 0.60],
+  };
+
+  // ── Floor 2 units ──
+  const F2 = {
+    // e.g. '201': [0.45, 0.20],
+  };
+
+  // ── Floor 3 units ──
+  const F3 = {
+    // e.g. '301': [0.45, 0.20],
+  };
+
+  // ── Floor 4 units ──
+  const F4 = {
+    // e.g. '401': [0.45, 0.20],
+  };
+
+  // ── Special destinations ──
+  const SPECIALS = {
+    'BUREAU': [0.430, 0.720],  // yellow Bureau box on Floor 1
+  };
+
+  // ── Which floor does each unit belong to? ──
+  const UNIT_FLOOR = {};
+  Object.keys(FB).forEach(id => { UNIT_FLOOR[id] = 'B'; });
+  Object.keys(F1).forEach(id => { UNIT_FLOOR[id] = '1'; });
+  Object.keys(F2).forEach(id => { UNIT_FLOOR[id] = '2'; });
+  Object.keys(F3).forEach(id => { UNIT_FLOOR[id] = '3'; });
+  Object.keys(F4).forEach(id => { UNIT_FLOOR[id] = '4'; });
+  UNIT_FLOOR['BUREAU'] = '1';
+
+  const UNIT_POS = { ...FB, ...F1, ...F2, ...F3, ...F4, ...SPECIALS };
+
+  // ── FLOOR CONFIG ──
+  const FLOORS = {
+    'B': {
+      img:   'Kirkland Map/1.png',
+      trace: 'Kirkland Map/1 copy.png',
+      name:  { en: 'Basement', fr: 'Sous-sol' },
+      waypoints: [[0.065, 0.550]],
+    },
+    '1': {
+      img:   'Kirkland Map/floor-1.png',
+      trace: 'Kirkland Map/floor-1 copy.png',
+      name:  { en: 'Floor 1', fr: 'Étage 1' },
+      waypoints: [[0.130, 0.720]],
+    },
+    '2': {
+      img:   'Kirkland Map/3.png',
+      trace: 'Kirkland Map/3 copy.png',
+      name:  { en: 'Floor 2', fr: 'Étage 2' },
+      waypoints: [[0.100, 0.670]],
+    },
+    '3': {
+      img:   'Kirkland Map/floor-3.png',
+      trace: 'Kirkland Map/floor-3 copy.png',
+      name:  { en: 'Floor 3', fr: 'Étage 3' },
+      waypoints: [[0.100, 0.670]],
+    },
+    '4': {
+      img:   'Kirkland Map/floor-4.png',
+      trace: 'Kirkland Map/floor-4 copy.png',
+      name:  { en: 'Floor 4', fr: 'Étage 4' },
+      waypoints: [[0.100, 0.670]],
+    },
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CORRIDOR GRAPHS
+  // Use calibrate2.html to trace corridors, then paste the output here.
+  // ─────────────────────────────────────────────────────────────────────────
+  const CORRIDOR_GRAPHS = {
+    'B': { entrance: 0, nodes: [], edges: [] },
+    '1': { entrance: 0, nodes: [], edges: [] },
+    '2': { entrance: 0, nodes: [], edges: [] },
+    '3': { entrance: 0, nodes: [], edges: [] },
+    '4': { entrance: 0, nodes: [], edges: [] },
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // WALKABILITY GRID (pixel-based A* fallback)
+  // Samples the trace image for red pixels to identify walkable corridors.
+  // ─────────────────────────────────────────────────────────────────────────
+  const GW = 1024, GH = 446;
+  const walkGrids = {};
+
+  function buildWalkGrid(imgEl, floorId) {
+    if (walkGrids[floorId]) return;
+    const cv = document.createElement('canvas');
+    cv.width = GW; cv.height = GH;
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(imgEl, 0, 0, GW, GH);
+    let px;
+    try { px = ctx.getImageData(0, 0, GW, GH).data; } catch(_) { return; }
+    const grid = new Uint8Array(GW * GH);
+    for (let i = 0; i < GW * GH; i++) {
+      const r = px[i*4], g = px[i*4+1], b = px[i*4+2];
+      grid[i] = (r > 180 && g < 130 && b < 130) ? 1 : 0;
+    }
+    walkGrids[floorId] = grid;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // A* PATHFINDING
+  // ─────────────────────────────────────────────────────────────────────────
+  class MinHeap {
+    constructor() { this.h = []; }
+    push(v) { this.h.push(v); this._up(this.h.length-1); }
+    pop()   { const t=this.h[0],l=this.h.pop(); if(this.h.length){this.h[0]=l;this._dn(0);} return t; }
+    get size() { return this.h.length; }
+    _up(i) { while(i>0){const p=(i-1)>>1;if(this.h[p][0]<=this.h[i][0])break;[this.h[p],this.h[i]]=[this.h[i],this.h[p]];i=p;} }
+    _dn(i) { const n=this.h.length;for(;;){let m=i,l=2*i+1,r=2*i+2;if(l<n&&this.h[l][0]<this.h[m][0])m=l;if(r<n&&this.h[r][0]<this.h[m][0])m=r;if(m===i)break;[this.h[m],this.h[i]]=[this.h[i],this.h[m]];i=m;} }
+  }
+
+  function snapWalk(grid, c, r) {
+    if (c>=0&&c<GW&&r>=0&&r<GH&&grid[r*GW+c]) return [c,r];
+    const q=[[c,r]], vis=new Set([r*GW+c]);
+    while (q.length) {
+      const [cc,cr]=q.shift();
+      for (const [nc,nr] of [[cc-1,cr],[cc+1,cr],[cc,cr-1],[cc,cr+1]]) {
+        if (nc<0||nc>=GW||nr<0||nr>=GH) continue;
+        const k=nr*GW+nc; if(vis.has(k))continue; vis.add(k);
+        if (grid[k]) return [nc,nr];
+        q.push([nc,nr]);
+      }
+    }
+    return [c,r];
+  }
+
+  function astar(grid, sc, sr, ec, er) {
+    [sc,sr]=snapWalk(grid,sc,sr);
+    [ec,er]=snapWalk(grid,ec,er);
+    if (sc===ec&&sr===er) return [[sc,sr]];
+    const TURN=80, ND=5, N=GW*GH*ND;
+    const gs=new Float32Array(N).fill(1e9);
+    const from=new Int32Array(N).fill(-1);
+    const heap=new MinHeap();
+    const h=(c,r)=>Math.abs(c-ec)+Math.abs(r-er);
+    const key=(c,r,d)=>(r*GW+c)*ND+d;
+    const MOVES=[[1,0,0],[-1,0,1],[0,1,2],[0,-1,3]];
+    const sk=key(sc,sr,4); gs[sk]=0;
+    heap.push([h(sc,sr),0,sc,sr,4]);
+    while (heap.size) {
+      const [,g,c,r,d]=heap.pop();
+      const k=key(c,r,d); if(g>gs[k]) continue;
+      if (c===ec&&r===er) {
+        const path=[]; let cur=k;
+        while(cur>=0){const pos=(cur/ND)|0;path.unshift([pos%GW,(pos/GW)|0]);cur=from[cur];}
+        return path;
+      }
+      for (const [dc,dr,nd] of MOVES) {
+        const nc=c+dc,nr=r+dr;
+        if(nc<0||nc>=GW||nr<0||nr>=GH||!grid[nr*GW+nc]) continue;
+        const nk=key(nc,nr,nd), ng=g+1+(d<4&&d!==nd?TURN:0);
+        if(ng<gs[nk]){gs[nk]=ng;from[nk]=k;heap.push([ng+h(nc,nr),ng,nc,nr,nd]);}
+      }
+    }
+    return null;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // GRAPH-BASED ROUTING
+  // ─────────────────────────────────────────────────────────────────────────
+  function graphRoute(floorId, unitPos) {
+    const g = CORRIDOR_GRAPHS[floorId];
+    if (!g || !g.nodes.length) return null;
+    const { nodes, edges, entrance } = g;
+    const N = nodes.length;
+    const adj = Array.from({length: N}, () => []);
+    for (const [a, b] of edges) {
+      const w = Math.hypot(nodes[a][0]-nodes[b][0], nodes[a][1]-nodes[b][1]);
+      adj[a].push([b, w]); adj[b].push([a, w]);
+    }
+    const [ux, uy] = unitPos;
+    let nearIdx = 0, nearDist = Infinity;
+    for (let i = 0; i < N; i++) {
+      const d = Math.hypot(nodes[i][0]-ux, nodes[i][1]-uy);
+      if (d < nearDist) { nearDist = d; nearIdx = i; }
+    }
+    if (nearIdx === entrance) return [[...nodes[entrance]]];
+    const TURN_PENALTY = 5.0, INF = Infinity;
+    const distHV = [new Float64Array(N).fill(INF), new Float64Array(N).fill(INF)];
+    const prevHV  = [new Int32Array(N).fill(-1),   new Int32Array(N).fill(-1)];
+    const prevDHV = [new Int8Array(N).fill(-1),    new Int8Array(N).fill(-1)];
+    distHV[0][entrance] = distHV[1][entrance] = 0;
+    const heap = new MinHeap();
+    heap.push([0, entrance, 0]); heap.push([0, entrance, 1]);
+    while (heap.size) {
+      const [d, u, dir] = heap.pop();
+      if (d > distHV[dir][u] + 1e-9) continue;
+      for (const [v, w] of adj[u]) {
+        const dx = nodes[v][0]-nodes[u][0], dy = nodes[v][1]-nodes[u][1];
+        const outDir = Math.abs(dx) >= Math.abs(dy) ? 0 : 1;
+        const nd = d + w + (dir !== outDir ? TURN_PENALTY : 0);
+        if (nd < distHV[outDir][v]) {
+          distHV[outDir][v] = nd; prevHV[outDir][v] = u; prevDHV[outDir][v] = dir;
+          heap.push([nd, v, outDir]);
+        }
+      }
+    }
+    if (!isFinite(distHV[0][nearIdx]) && !isFinite(distHV[1][nearIdx])) {
+      let bestIdx = entrance, bestScore = INF;
+      for (let i = 0; i < N; i++) {
+        const c = Math.min(distHV[0][i], distHV[1][i]);
+        if (!isFinite(c)) continue;
+        const score = c + Math.hypot(nodes[i][0]-ux, nodes[i][1]-uy);
+        if (score < bestScore) { bestScore = score; bestIdx = i; }
+      }
+      nearIdx = bestIdx;
+    }
+    const path = [];
+    let cur = nearIdx, curDir = (distHV[0][nearIdx] <= distHV[1][nearIdx]) ? 0 : 1;
+    while (cur !== -1) {
+      path.unshift([...nodes[cur]]);
+      const pp = prevHV[curDir][cur], pd = prevDHV[curDir][cur];
+      cur = pp; curDir = pd < 0 ? 0 : pd;
+    }
+    return simplifyPath(snapAxes(path));
+  }
+
+  function snapAxes(path) {
+    if (path.length < 2) return path;
+    const out = [path[0]];
+    for (let i = 1; i < path.length - 1; i++) {
+      const [ax, ay] = out[out.length-1];
+      let [bx, by] = path[i];
+      const dx = Math.abs(bx-ax), dy = Math.abs(by-ay);
+      if (dy > dx*3) bx = ax; else if (dx > dy*3) by = ay;
+      out.push([bx, by]);
+    }
+    out.push(path[path.length-1]);
+    return out;
+  }
+
+  function simplifyPath(path, tol = 0.0015) {
+    if (path.length <= 2) return path;
+    let cur = path;
+    for (let pass = 0; pass < 30; pass++) {
+      const out = [cur[0]];
+      for (let i = 1; i < cur.length - 1; i++) {
+        const [ax,ay] = out[out.length-1], [bx,by] = cur[i], [cx,cy] = cur[i+1];
+        const acLen = Math.hypot(cx-ax, cy-ay);
+        if (acLen < 1e-10) continue;
+        const cross = Math.abs((bx-ax)*(cy-ay)-(by-ay)*(cx-ax))/acLen;
+        if (cross > tol) out.push([bx, by]);
+      }
+      out.push(cur[cur.length-1]);
+      if (out.length === cur.length) break;
+      cur = out;
+    }
+    return cur;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PATH BUILDER
+  // ─────────────────────────────────────────────────────────────────────────
+  function buildPath(floorId, unitPos) {
+    const gp = graphRoute(floorId, unitPos);
+    if (gp) return gp;
+    const floor = FLOORS[floorId];
+    const grid = walkGrids[floorId];
+    const stops = [...floor.waypoints, unitPos];
+    if (!grid) return stops;
+    let fullPath = [];
+    for (let i = 0; i < stops.length - 1; i++) {
+      const [ex,ey] = stops[i], [nx,ny] = stops[i+1];
+      const sc=Math.round(ex*GW), sr=Math.round(ey*GH), ec=Math.round(nx*GW), er=Math.round(ny*GH);
+      const raw = astar(grid, sc, sr, ec, er);
+      const seg = raw ? raw.map(([c,r])=>[c/GW,r/GH]) : [[ex,ey],[nx,ny]];
+      if (i===0) fullPath=seg; else fullPath.push(...seg.slice(1));
+    }
+    const collapsed = collapseRuns(fullPath);
+    if (collapsed.length > 0) collapsed[collapsed.length-1] = unitPos;
+    return collapsed;
+  }
+
+  function collapseRuns(pts) {
+    if (pts.length<=2) return pts;
+    const out=[pts[0]];
+    for (let i=1;i<pts.length-1;i++) {
+      const [ax,ay]=out[out.length-1],[bx,by]=pts[i],[cx,cy]=pts[i+1];
+      if (Math.abs((bx-ax)*(cy-ay)-(by-ay)*(cx-ax))>1e-9) out.push(pts[i]);
+    }
+    out.push(pts[pts.length-1]);
+    return out;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DIRECTION TEXT
+  // ─────────────────────────────────────────────────────────────────────────
+  function getDirection(floorId, unitId, pos, lang) {
+    const [x, y] = pos;
+    const floorLabel = FLOORS[floorId].name[lang];
+
+    let zone;
+    if (y < 0.15) zone = { en: 'along the top corridor', fr: 'le long du couloir supérieur' };
+    else if (x < 0.12) zone = { en: 'along the left wall', fr: 'le long du mur gauche' };
+    else if (x > 0.88) zone = { en: 'along the right wall', fr: 'le long du mur droit' };
+    else if (y > 0.75) zone = { en: 'near the loading area', fr: 'près de la zone de chargement' };
+    else if (x < 0.35) zone = { en: 'in the left section', fr: 'dans la section gauche' };
+    else if (x > 0.65) zone = { en: 'in the right section', fr: 'dans la section droite' };
+    else zone = { en: 'in the central section', fr: 'dans la section centrale' };
+
+    const needsElevator = floorId !== '1' && floorId !== 'B';
+    const needsBasement = floorId === 'B';
+
+    if (lang === 'en') {
+      if (needsBasement)
+        return `From the entrance, take the elevator down to the ${floorLabel}. Follow the highlighted path — unit ${unitId} is ${zone.en}.`;
+      if (needsElevator)
+        return `From the entrance, take the elevator up to ${floorLabel}. Follow the highlighted path — unit ${unitId} is ${zone.en}.`;
+      return `From the entrance, follow the highlighted path — unit ${unitId} is ${zone.en}.`;
+    } else {
+      if (needsBasement)
+        return `Depuis l'entrée, prenez l'ascenseur pour descendre au ${floorLabel}. Suivez le chemin indiqué — l'unité ${unitId} se trouve ${zone.fr}.`;
+      if (needsElevator)
+        return `Depuis l'entrée, prenez l'ascenseur jusqu'à l'${floorLabel}. Suivez le chemin indiqué — l'unité ${unitId} se trouve ${zone.fr}.`;
+      return `Depuis l'entrée, suivez le chemin indiqué — l'unité ${unitId} se trouve ${zone.fr}.`;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CANVAS DRAWING
+  // ─────────────────────────────────────────────────────────────────────────
+  let animFrame = null, pulseFrame = null;
+
+  function drawPath(canvas, img, pathPts, progress, pulseT = -1) {
+    const unitPos = pathPts[pathPts.length-1];
+    const W = img.naturalWidth, H = img.naturalHeight;
+    canvas.width  = img.offsetWidth  * devicePixelRatio;
+    canvas.height = img.offsetHeight * devicePixelRatio;
+    const scaleX = canvas.width / W, scaleY = canvas.height / H;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!pathPts || pathPts.length < 2) return;
+
+    const toCanvas = ([fx, fy]) => [fx*W*scaleX, fy*H*scaleY];
+    const pts = pathPts.map(toCanvas);
+    let totalLen = 0;
+    const segs = [];
+    for (let i = 1; i < pts.length; i++) {
+      const l = Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
+      totalLen += l; segs.push(l);
+    }
+    const drawn = totalLen * progress;
+
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const drawLine = (color, width) => {
+      ctx.strokeStyle = color; ctx.lineWidth = width * devicePixelRatio;
+      let rem = drawn; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) {
+        const l = segs[i-1]; if (rem<=0) break;
+        if (rem>=l) { ctx.lineTo(pts[i][0], pts[i][1]); rem-=l; }
+        else {
+          const t=rem/l;
+          ctx.lineTo(pts[i-1][0]+t*(pts[i][0]-pts[i-1][0]), pts[i-1][1]+t*(pts[i][1]-pts[i-1][1]));
+          rem=0;
+        }
+      }
+      ctx.stroke();
+    };
+    ctx.shadowColor='rgba(0,0,0,0.3)'; ctx.shadowBlur=6*devicePixelRatio;
+    drawLine('rgba(255,255,255,0.9)', 6);
+    ctx.shadowBlur=0;
+    drawLine('#e8192c', 3.5);
+
+    const [sx,sy]=pts[0], rs=9*devicePixelRatio;
+    ctx.fillStyle='#ffffff'; ctx.strokeStyle='#e8192c'; ctx.lineWidth=2.5*devicePixelRatio;
+    ctx.beginPath(); ctx.arc(sx,sy,rs,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#e8192c'; ctx.beginPath(); ctx.arc(sx,sy,rs*0.38,0,Math.PI*2); ctx.fill();
+
+    if (progress >= 0.9) {
+      const [ux,uy]=toCanvas(unitPos), r=11*devicePixelRatio, pinH=r*2.4;
+      ctx.shadowColor='rgba(0,0,0,0.35)'; ctx.shadowBlur=8*devicePixelRatio; ctx.shadowOffsetY=3*devicePixelRatio;
+      ctx.fillStyle='#e8192c'; ctx.beginPath();
+      ctx.arc(ux,uy-pinH+r,r,Math.PI,0);
+      ctx.bezierCurveTo(ux+r,uy-pinH+r*1.5,ux+r*0.4,uy-r*0.4,ux,uy);
+      ctx.bezierCurveTo(ux-r*0.4,uy-r*0.4,ux-r,uy-pinH+r*1.5,ux-r,uy-pinH+r);
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+      ctx.strokeStyle='#ffffff'; ctx.lineWidth=2*devicePixelRatio; ctx.beginPath();
+      ctx.arc(ux,uy-pinH+r,r,Math.PI,0);
+      ctx.bezierCurveTo(ux+r,uy-pinH+r*1.5,ux+r*0.4,uy-r*0.4,ux,uy);
+      ctx.bezierCurveTo(ux-r*0.4,uy-r*0.4,ux-r,uy-pinH+r*1.5,ux-r,uy-pinH+r);
+      ctx.closePath(); ctx.stroke();
+      ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(ux,uy-pinH+r,r*0.38,0,Math.PI*2); ctx.fill();
+      if (pulseT >= 0) {
+        const cx=ux, cy=uy-pinH+r;
+        for (let i=0;i<2;i++) {
+          const pt=((pulseT+i/2)%1);
+          ctx.beginPath(); ctx.arc(cx,cy,(r+pt*r*1.1)*devicePixelRatio,0,Math.PI*2);
+          ctx.strokeStyle=`rgba(232,25,44,${(1-pt)*0.45})`; ctx.lineWidth=1.5*devicePixelRatio; ctx.stroke();
+        }
+      }
+    }
+  }
+
+  function animatePath(canvas, img, pathPts, unitPos) {
+    if (animFrame) cancelAnimationFrame(animFrame);
+    if (pulseFrame) { cancelAnimationFrame(pulseFrame); pulseFrame=null; }
+    const duration=900, start=performance.now();
+    function step(now) {
+      const t=Math.min((now-start)/duration,1), ease=1-Math.pow(1-t,3);
+      drawPath(canvas,img,pathPts,ease);
+      if (t<1) { animFrame=requestAnimationFrame(step); }
+      else {
+        const ps=performance.now();
+        function pulse(now){const pt=((now-ps)%1600)/1600;drawPath(canvas,img,pathPts,1,pt);pulseFrame=requestAnimationFrame(pulse);}
+        pulseFrame=requestAnimationFrame(pulse);
+      }
+    }
+    animFrame=requestAnimationFrame(step);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // STATE
+  // ─────────────────────────────────────────────────────────────────────────
+  let lang = 'fr';
+  let activeFloor = '1';
+  let activeUnit = null;
+  let activePath = null;
+  let pz = null;
+
+  const $lang   = document.getElementById('langToggle');
+  const $fr     = document.getElementById('langFr');
+  const $en     = document.getElementById('langEn');
+  const $input  = document.getElementById('unitInput');
+  const $btn    = document.getElementById('findBtn');
+  const $fb     = document.getElementById('inputFeedback');
+  const $result = document.getElementById('resultCard');
+  const $rLabel = document.getElementById('resultLabel');
+  const $rMain  = document.getElementById('resultMain');
+  const $rDir   = document.getElementById('resultDir');
+  const $title  = document.getElementById('mapTitle');
+  const $switch = document.getElementById('floorSwitch');
+  const $img    = document.getElementById('mapImg');
+  const $canvas = document.getElementById('mapCanvas');
+
+  function setLang(l) {
+    lang = l;
+    document.body.className = 'lang-'+l;
+    document.documentElement.lang = l;
+    $fr.classList.toggle('active', l==='fr');
+    $en.classList.toggle('active', l==='en');
+    document.title = l==='en' ? 'Pandora Mini Storage — Kirkland' : 'Pandora Mini-Entrepôts — Kirkland';
+    $title.textContent = FLOORS[activeFloor].name[l];
+    if (activeUnit) showResult(activeUnit, activeFloor);
+  }
+  $lang.addEventListener('click', () => setLang(lang==='fr' ? 'en' : 'fr'));
+
+  function buildFloorButtons() {
+    $switch.innerHTML = '';
+    Object.entries(FLOORS).forEach(([id, f]) => {
+      const btn = document.createElement('button');
+      btn.className = 'floor-btn' + (id===activeFloor ? ' active' : '');
+      btn.textContent = f.name[lang];
+      btn.dataset.floor = id;
+      btn.addEventListener('click', () => selectFloor(id));
+      $switch.appendChild(btn);
+    });
+  }
+
+  function selectFloor(id) {
+    activeFloor = id;
+    $switch.querySelectorAll('.floor-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.floor===id);
+      b.textContent = FLOORS[b.dataset.floor].name[lang];
+    });
+    $title.textContent = FLOORS[id].name[lang];
+    loadFloorImage(id, () => {
+      if (activeUnit && UNIT_FLOOR[activeUnit]===id) redrawPath();
+      else clearCanvas();
+    });
+  }
+
+  function loadFloorImage(id, cb) {
+    const src = FLOORS[id].img;
+    if ($img.dataset.loaded===src) { cb&&cb(); return; }
+    clearCanvas();
+    $img.onload = () => {
+      $img.dataset.loaded = src;
+      const traceSrc = FLOORS[id].trace;
+      if (traceSrc) {
+        const t = new Image(); t.crossOrigin='anonymous';
+        t.onload = () => { buildWalkGrid(t, id); cb&&cb(); };
+        t.onerror = () => cb&&cb();
+        t.src = traceSrc;
+      } else { buildWalkGrid($img, id); cb&&cb(); }
+    };
+    $img.onerror = () => { $img.dataset.loaded=''; cb&&cb(); };
+    $img.src = src;
+    $img.alt = FLOORS[id].name[lang];
+  }
+
+  function clearCanvas() {
+    $canvas.getContext('2d').clearRect(0, 0, $canvas.width, $canvas.height);
+    if (animFrame) { cancelAnimationFrame(animFrame); animFrame=null; }
+    if (pulseFrame) { cancelAnimationFrame(pulseFrame); pulseFrame=null; }
+  }
+
+  function redrawPath() {
+    if (!activeUnit || !activePath) return;
+    animatePath($canvas, $img, activePath, UNIT_POS[activeUnit]);
+  }
+
+  function findUnit(val) {
+    const raw = val.trim();
+    const id = raw.toUpperCase()==='BUREAU' ? 'BUREAU' : raw;
+    if (!id) { setFeedback(''); return; }
+
+    const floor = UNIT_FLOOR[id];
+    if (!floor) {
+      setFeedback(lang==='fr' ? `Unité « ${id} » introuvable.` : `Unit "${id}" not found.`);
+      $input.classList.add('error');
+      $result.classList.remove('show');
+      activeUnit=null; activePath=null;
+      return;
+    }
+    setFeedback('');
+    $input.classList.remove('error');
+    activeUnit = id;
+    if (id!=='BUREAU') localStorage.setItem('pandora_kirkland_last', id);
+    activePath = buildPath(floor, UNIT_POS[id]);
+
+    if (floor!==activeFloor) {
+      selectFloor(floor);
+      setTimeout(redrawPath, 200);
+    } else { redrawPath(); }
+    showResult(id, floor);
+  }
+
+  function showResult(id, floor) {
+    if (id==='BUREAU') {
+      $rLabel.textContent = lang==='fr' ? 'Destination' : 'Destination';
+      $rMain.textContent  = lang==='fr' ? 'Bureau' : 'Office';
+      $rDir.textContent   = lang==='fr'
+        ? 'Suivez le chemin indiqué — le bureau se trouve à l\'entrée du bâtiment.'
+        : 'Follow the highlighted path — the office is at the building entrance.';
+    } else {
+      $rLabel.textContent = lang==='fr' ? `Unité ${id}` : `Unit ${id}`;
+      $rMain.textContent  = FLOORS[floor].name[lang];
+      $rDir.textContent   = getDirection(floor, id, UNIT_POS[id], lang);
+    }
+    $result.classList.add('show');
+  }
+
+  function setFeedback(msg) {
+    $fb.textContent = msg;
+    if (!msg) $input.classList.remove('error');
+  }
+
+  $btn.addEventListener('click', () => findUnit($input.value));
+  $input.addEventListener('keydown', e => { if(e.key==='Enter') findUnit($input.value); });
+  $input.addEventListener('input', () => { if($input.classList.contains('error')) setFeedback(''); });
+  document.getElementById('officeBtn').addEventListener('click', () => { $input.value=''; findUnit('BUREAU'); });
+
+  new ResizeObserver(() => {
+    if (activeUnit && UNIT_FLOOR[activeUnit]===activeFloor) redrawPath();
+  }).observe($img);
+
+  function initPanzoom() {
+    if (pz) { pz.destroy(); pz=null; }
+    pz = Panzoom(document.getElementById('mapPanLayer'), {
+      minScale: 1, maxScale: 5, startScale: 1, contain: 'outside', animate: true,
+    });
+    document.getElementById('mapViewport').addEventListener('wheel', e => pz.zoomWithWheel(e), {passive:false});
+  }
+
+  // ── INIT ──
+  buildFloorButtons();
+  loadFloorImage('1', initPanzoom);
+  setLang('fr');
+
+  const _saved = localStorage.getItem('pandora_kirkland_last');
+  if (_saved && UNIT_POS[_saved]) {
+    $input.value = _saved;
+    setTimeout(() => findUnit(_saved), 300);
+  } else {
+    setTimeout(() => $input.focus(), 400);
+  }
+  </script>
+</body>
+</html>
