@@ -886,7 +886,9 @@
     const grid = new Uint8Array(GW * GH);
     for (let i = 0; i < GW * GH; i++) {
       const r = px[i*4], g = px[i*4+1], b = px[i*4+2];
-      grid[i] = (r > 180 && g < 130 && b < 130) ? 1 : 0;
+      const isRed   = r > 180 && g < 130 && b < 130;
+      const isWhite = r > 200 && g > 200 && b > 200;
+      grid[i] = (isRed || isWhite) ? 1 : 0;
     }
     walkGrids[floorId] = grid;
   }
@@ -1177,8 +1179,8 @@
       ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(ux,uy-pinH+r,r*0.38,0,Math.PI*2); ctx.fill();
       if (pulseT >= 0) {
         const cx=ux, cy=uy-pinH+r;
-        for (let i=0;i<2;i++) {
-          const pt=((pulseT+i/2)%1);
+        for (let i=0;i<1;i++) {
+          const pt=((pulseT+i/1)%1);
           ctx.beginPath(); ctx.arc(cx,cy,(r+pt*r*1.1)*devicePixelRatio,0,Math.PI*2);
           ctx.strokeStyle=`rgba(232,25,44,${(1-pt)*0.45})`; ctx.lineWidth=1.5*devicePixelRatio; ctx.stroke();
         }
