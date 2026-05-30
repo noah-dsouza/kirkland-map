@@ -1173,7 +1173,18 @@
   // ─────────────────────────────────────────────────────────────────────────
   function buildPath(floorId, unitPos) {
     const gp = graphRoute(floorId, unitPos);
-    if (gp) { gp.push([...unitPos]); return gp; }
+    if (gp) {
+      // Remove last corridor node if it would overshoot past the unit
+      while (gp.length >= 2) {
+        const last = gp[gp.length - 1];
+        const prev = gp[gp.length - 2];
+        const dLast = Math.hypot(last[0]-unitPos[0], last[1]-unitPos[1]);
+        const dPrev = Math.hypot(prev[0]-unitPos[0], prev[1]-unitPos[1]);
+        if (dPrev <= dLast) { gp.pop(); } else { break; }
+      }
+      gp.push([...unitPos]);
+      return gp;
+    }
     const floor = FLOORS[floorId];
     const grid = walkGrids[floorId];
     const stops = [...floor.waypoints, unitPos];
