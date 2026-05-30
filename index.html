@@ -1269,9 +1269,9 @@
       $img.dataset.loaded = src;
       const traceSrc = FLOORS[id].trace;
       if (traceSrc) {
-        const t = new Image(); t.crossOrigin='anonymous';
+        const t = new Image();
         t.onload = () => { buildWalkGrid(t, id); cb&&cb(); };
-        t.onerror = () => cb&&cb();
+        t.onerror = () => { buildWalkGrid($img, id); cb&&cb(); };
         t.src = traceSrc;
       } else { buildWalkGrid($img, id); cb&&cb(); }
     };
