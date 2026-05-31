@@ -1089,12 +1089,6 @@
       adj[a].push([b, w]); adj[b].push([a, w]);
     }
     const [ux, uy] = unitPos;
-    let nearIdx = 0, nearDist = Infinity;
-    for (let i = 0; i < N; i++) {
-      const d = Math.hypot(nodes[i][0]-ux, nodes[i][1]-uy);
-      if (d < nearDist) { nearDist = d; nearIdx = i; }
-    }
-    if (nearIdx === entrance) return [[...nodes[entrance]]];
     const TURN_PENALTY = 5.0, INF = Infinity;
     const distHV = [new Float64Array(N).fill(INF), new Float64Array(N).fill(INF)];
     const prevHV  = [new Int32Array(N).fill(-1),   new Int32Array(N).fill(-1)];
@@ -1115,23 +1109,38 @@
         }
       }
     }
-    if (!isFinite(distHV[0][nearIdx]) && !isFinite(distHV[1][nearIdx])) {
-      let bestIdx = entrance, bestScore = INF;
-      for (let i = 0; i < N; i++) {
-        const c = Math.min(distHV[0][i], distHV[1][i]);
-        if (!isFinite(c)) continue;
-        const score = c + Math.hypot(nodes[i][0]-ux, nodes[i][1]-uy);
-        if (score < bestScore) { bestScore = score; bestIdx = i; }
+    // Project unit onto nearest reachable corridor edge for clean path exit
+    function projSeg(ax,ay,bx,by,px,py) {
+      const dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy;
+      if(len2<1e-12) return [ax,ay];
+      const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/len2));
+      return [ax+t*dx, ay+t*dy];
+    }
+    let bestScore=INF, bestApproach=entrance, bestProj=null;
+    for (const [a,b] of edges) {
+      const gda=Math.min(distHV[0][a],distHV[1][a]);
+      const gdb=Math.min(distHV[0][b],distHV[1][b]);
+      if(!isFinite(gda)&&!isFinite(gdb)) continue;
+      const [px,py]=projSeg(nodes[a][0],nodes[a][1],nodes[b][0],nodes[b][1],ux,uy);
+      const dPU=Math.hypot(px-ux,py-uy);
+      if(isFinite(gda)){
+        const s=gda+Math.hypot(nodes[a][0]-px,nodes[a][1]-py)+dPU;
+        if(s<bestScore){bestScore=s;bestApproach=a;bestProj=[px,py];}
       }
-      nearIdx = bestIdx;
+      if(isFinite(gdb)){
+        const s=gdb+Math.hypot(nodes[b][0]-px,nodes[b][1]-py)+dPU;
+        if(s<bestScore){bestScore=s;bestApproach=b;bestProj=[px,py];}
+      }
     }
+    if(bestApproach===entrance&&bestProj===null) return [[...nodes[entrance]]];
     const path = [];
-    let cur = nearIdx, curDir = (distHV[0][nearIdx] <= distHV[1][nearIdx]) ? 0 : 1;
-    while (cur !== -1) {
+    let cur=bestApproach, curDir=(distHV[0][bestApproach]<=distHV[1][bestApproach])?0:1;
+    while(cur!==-1){
       path.unshift([...nodes[cur]]);
-      const pp = prevHV[curDir][cur], pd = prevDHV[curDir][cur];
-      cur = pp; curDir = pd < 0 ? 0 : pd;
+      const pp=prevHV[curDir][cur],pd=prevDHV[curDir][cur];
+      cur=pp; curDir=pd<0?0:pd;
     }
+    if(bestProj) path.push(bestProj);
     return simplifyPath(snapAxes(path));
   }
 
@@ -1173,18 +1182,7 @@
   // ─────────────────────────────────────────────────────────────────────────
   function buildPath(floorId, unitPos) {
     const gp = graphRoute(floorId, unitPos);
-    if (gp) {
-      // Remove last corridor node if it would overshoot past the unit
-      while (gp.length >= 2) {
-        const last = gp[gp.length - 1];
-        const prev = gp[gp.length - 2];
-        const dLast = Math.hypot(last[0]-unitPos[0], last[1]-unitPos[1]);
-        const dPrev = Math.hypot(prev[0]-unitPos[0], prev[1]-unitPos[1]);
-        if (dPrev <= dLast) { gp.pop(); } else { break; }
-      }
-      gp.push([...unitPos]);
-      return gp;
-    }
+    if (gp) { gp.push([...unitPos]); return gp; }
     const floor = FLOORS[floorId];
     const grid = walkGrids[floorId];
     const stops = [...floor.waypoints, unitPos];
