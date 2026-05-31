@@ -999,6 +999,32 @@
   const GW = 384, GH = 168;
   const walkGrids = {};
 
+  // Paint corridor graph edges onto the A* grid so paths can ONLY walk through corridors.
+  function buildGraphGrid(floorId) {
+    if (walkGrids[floorId]) return;
+    const g = CORRIDOR_GRAPHS[floorId];
+    if (!g || !g.nodes.length) return;
+    const { nodes, edges } = g;
+    const grid = new Uint8Array(GW * GH);
+    const R = 3; // corridor half-width in pixels
+    for (const [a, b] of edges) {
+      const px0=Math.round(nodes[a][0]*GW), py0=Math.round(nodes[a][1]*GH);
+      const px1=Math.round(nodes[b][0]*GW), py1=Math.round(nodes[b][1]*GH);
+      const steps=Math.max(Math.abs(px1-px0),Math.abs(py1-py0),1);
+      for (let i=0; i<=steps; i++) {
+        const t=i/steps;
+        const cx=Math.round(px0+t*(px1-px0)), cy=Math.round(py0+t*(py1-py0));
+        for (let dy=-R; dy<=R; dy++) for (let dx=-R; dx<=R; dx++) {
+          if (dx*dx+dy*dy<=R*R) {
+            const nx=cx+dx, ny=cy+dy;
+            if (nx>=0&&nx<GW&&ny>=0&&ny<GH) grid[ny*GW+nx]=1;
+          }
+        }
+      }
+    }
+    walkGrids[floorId] = grid;
+  }
+
   function buildWalkGrid(imgEl, floorId) {
     if (walkGrids[floorId]) return;
     const cv = document.createElement('canvas');
@@ -1181,8 +1207,8 @@
   // PATH BUILDER
   // ─────────────────────────────────────────────────────────────────────────
   function buildPath(floorId, unitPos) {
-    const gp = graphRoute(floorId, unitPos);
-    if (gp) { gp.push([...unitPos]); return gp; }
+    // Build corridor grid from graph edges (takes priority over image-based grid)
+    buildGraphGrid(floorId);
     const floor = FLOORS[floorId];
     const grid = walkGrids[floorId];
     const stops = [...floor.waypoints, unitPos];
