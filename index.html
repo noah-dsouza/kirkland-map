@@ -1083,7 +1083,7 @@
     [sc,sr]=snapWalk(grid,sc,sr);
     [ec,er]=snapWalk(grid,ec,er);
     if (sc===ec&&sr===er) return [[sc,sr]];
-    const TURN=80, ND=5, N=GW*GH*ND;
+    const TURN=20, ND=5, N=GW*GH*ND;
     const gs=new Float32Array(N).fill(1e9);
     const from=new Int32Array(N).fill(-1);
     const heap=new MinHeap();
@@ -1176,9 +1176,7 @@
       cur=pp; curDir=pd<0?0:pd;
     }
     if(bestProj) path.push(bestProj);
-    const result = simplifyPath(snapAxes(path));
-    result.push([ux, uy]);
-    return result;
+    return simplifyPath(snapAxes(path));
   }
 
   function snapAxes(path) {
@@ -1218,8 +1216,8 @@
   // PATH BUILDER
   // ─────────────────────────────────────────────────────────────────────────
   function buildPath(floorId, unitPos) {
-    // Build corridor grid from graph edges (takes priority over image-based grid)
-    buildGraphGrid(floorId);
+    // Use trace-image grid if available; synthetic graph grid only as fallback
+    if (!walkGrids[floorId]) buildGraphGrid(floorId);
     const floor = FLOORS[floorId];
     const grid = walkGrids[floorId];
     const stops = [...floor.waypoints, unitPos];
@@ -1431,8 +1429,10 @@
     });
     $title.textContent = FLOORS[id].name[lang];
     loadFloorImage(id, () => {
-      if (activeUnit && UNIT_FLOOR[activeUnit]===id) redrawPath();
-      else clearCanvas();
+      if (activeUnit && UNIT_FLOOR[activeUnit]===id) {
+        activePath = buildPath(id, UNIT_POS[activeUnit]);
+        redrawPath();
+      } else clearCanvas();
     });
   }
 
@@ -1493,7 +1493,7 @@
     $input.classList.remove('error');
     activeUnit = id;
     if (id !== 'BUREAU') localStorage.setItem('pandora_kirkland_last', id);
-    activePath = graphRoute(floor, UNIT_POS[id]) || buildPath(floor, UNIT_POS[id]);
+    activePath = buildPath(floor, UNIT_POS[id]);
 
     if (floor!==activeFloor) {
       selectFloor(floor);
