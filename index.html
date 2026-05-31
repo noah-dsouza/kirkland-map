@@ -1176,7 +1176,9 @@
       cur=pp; curDir=pd<0?0:pd;
     }
     if(bestProj) path.push(bestProj);
-    return simplifyPath(snapAxes(path));
+    const result = simplifyPath(snapAxes(path));
+    result.push([ux, uy]);
+    return result;
   }
 
   function snapAxes(path) {
@@ -1491,7 +1493,7 @@
     $input.classList.remove('error');
     activeUnit = id;
     if (id !== 'BUREAU') localStorage.setItem('pandora_kirkland_last', id);
-    activePath = buildPath(floor, UNIT_POS[id]);
+    activePath = graphRoute(floor, UNIT_POS[id]) || buildPath(floor, UNIT_POS[id]);
 
     if (floor!==activeFloor) {
       selectFloor(floor);
