@@ -1001,7 +1001,6 @@
 
   // Paint corridor graph edges onto the A* grid so paths can ONLY walk through corridors.
   function buildGraphGrid(floorId) {
-    if (walkGrids[floorId]) return;
     const g = CORRIDOR_GRAPHS[floorId];
     if (!g || !g.nodes.length) return;
     const { nodes, edges } = g;
