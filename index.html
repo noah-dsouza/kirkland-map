@@ -1118,64 +1118,65 @@
     if (!g || !g.nodes.length) return null;
     const { nodes, edges, entrance } = g;
     const N = nodes.length;
+    const [ux, uy] = unitPos;
+
+    // Build adjacency list
     const adj = Array.from({length: N}, () => []);
     for (const [a, b] of edges) {
       const w = Math.hypot(nodes[a][0]-nodes[b][0], nodes[a][1]-nodes[b][1]);
       adj[a].push([b, w]); adj[b].push([a, w]);
     }
-    const [ux, uy] = unitPos;
-    const TURN_PENALTY = 5.0, INF = Infinity;
-    const distHV = [new Float64Array(N).fill(INF), new Float64Array(N).fill(INF)];
-    const prevHV  = [new Int32Array(N).fill(-1),   new Int32Array(N).fill(-1)];
-    const prevDHV = [new Int8Array(N).fill(-1),    new Int8Array(N).fill(-1)];
-    distHV[0][entrance] = distHV[1][entrance] = 0;
+
+    // Simple Dijkstra from entrance
+    const INF = Infinity;
+    const dist = new Float64Array(N).fill(INF);
+    const prev = new Int32Array(N).fill(-1);
+    dist[entrance] = 0;
     const heap = new MinHeap();
-    heap.push([0, entrance, 0]); heap.push([0, entrance, 1]);
+    heap.push([0, entrance]);
     while (heap.size) {
-      const [d, u, dir] = heap.pop();
-      if (d > distHV[dir][u] + 1e-9) continue;
+      const [d, u] = heap.pop();
+      if (d > dist[u] + 1e-9) continue;
       for (const [v, w] of adj[u]) {
-        const dx = nodes[v][0]-nodes[u][0], dy = nodes[v][1]-nodes[u][1];
-        const outDir = Math.abs(dx) >= Math.abs(dy) ? 0 : 1;
-        const nd = d + w + (dir !== outDir ? TURN_PENALTY : 0);
-        if (nd < distHV[outDir][v]) {
-          distHV[outDir][v] = nd; prevHV[outDir][v] = u; prevDHV[outDir][v] = dir;
-          heap.push([nd, v, outDir]);
-        }
+        const nd = d + w;
+        if (nd < dist[v]) { dist[v] = nd; prev[v] = u; heap.push([nd, v]); }
       }
     }
-    // Project unit onto nearest reachable corridor edge for clean path exit
+
+    // Find best corridor edge to approach from.
+    // Weight horizontal offset 2× and below-unit offset 1.5× so the path
+    // naturally exits from ABOVE the unit (most natural for building corridors).
     function projSeg(ax,ay,bx,by,px,py) {
       const dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy;
       if(len2<1e-12) return [ax,ay];
       const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/len2));
       return [ax+t*dx, ay+t*dy];
     }
-    let bestScore=INF, bestApproach=entrance, bestProj=null;
+    function weightedDPU(px,py) {
+      const hOff = px - ux, vOff = py - uy;
+      // penalise horizontal approach 2×; approaching from below 1.5×
+      return Math.hypot(2 * hOff, vOff > 0 ? 1.5 * vOff : vOff);
+    }
+    let bestDPU = INF, bestApproach = entrance, bestProj = null;
     for (const [a,b] of edges) {
-      const gda=Math.min(distHV[0][a],distHV[1][a]);
-      const gdb=Math.min(distHV[0][b],distHV[1][b]);
-      if(!isFinite(gda)&&!isFinite(gdb)) continue;
-      const [px,py]=projSeg(nodes[a][0],nodes[a][1],nodes[b][0],nodes[b][1],ux,uy);
-      const dPU=Math.hypot(px-ux,py-uy);
-      if(isFinite(gda)){
-        const s=gda+Math.hypot(nodes[a][0]-px,nodes[a][1]-py)+dPU;
-        if(s<bestScore){bestScore=s;bestApproach=a;bestProj=[px,py];}
-      }
-      if(isFinite(gdb)){
-        const s=gdb+Math.hypot(nodes[b][0]-px,nodes[b][1]-py)+dPU;
-        if(s<bestScore){bestScore=s;bestApproach=b;bestProj=[px,py];}
+      if (!isFinite(dist[a]) && !isFinite(dist[b])) continue;
+      const [px,py] = projSeg(nodes[a][0],nodes[a][1],nodes[b][0],nodes[b][1],ux,uy);
+      const dPU = weightedDPU(px, py);
+      if (dPU < bestDPU) {
+        bestDPU = dPU;
+        const da = isFinite(dist[a]) ? dist[a] + Math.hypot(nodes[a][0]-px, nodes[a][1]-py) : INF;
+        const db = isFinite(dist[b]) ? dist[b] + Math.hypot(nodes[b][0]-px, nodes[b][1]-py) : INF;
+        bestApproach = da <= db ? a : b;
+        bestProj = [px, py];
       }
     }
-    if(bestApproach===entrance&&bestProj===null) return [[...nodes[entrance]]];
+
+    // Trace path from entrance to bestApproach, then to proj, then to unit
     const path = [];
-    let cur=bestApproach, curDir=(distHV[0][bestApproach]<=distHV[1][bestApproach])?0:1;
-    while(cur!==-1){
-      path.unshift([...nodes[cur]]);
-      const pp=prevHV[curDir][cur],pd=prevDHV[curDir][cur];
-      cur=pp; curDir=pd<0?0:pd;
-    }
-    if(bestProj) path.push(bestProj);
+    let cur = bestApproach;
+    while (cur !== -1) { path.unshift([...nodes[cur]]); cur = prev[cur]; }
+    if (bestProj) path.push(bestProj);
+    path.push([ux, uy]);
     return simplifyPath(snapAxes(path));
   }
 
@@ -1216,8 +1217,7 @@
   // PATH BUILDER
   // ─────────────────────────────────────────────────────────────────────────
   function buildPath(floorId, unitPos) {
-    // Use trace-image grid if available; synthetic graph grid only as fallback
-    if (!walkGrids[floorId]) buildGraphGrid(floorId);
+    buildGraphGrid(floorId);
     const floor = FLOORS[floorId];
     const grid = walkGrids[floorId];
     const stops = [...floor.waypoints, unitPos];
@@ -1297,9 +1297,12 @@
 
     const toCanvas = ([fx, fy]) => [fx*W*scaleX, fy*H*scaleY];
     const pts = pathPts.map(toCanvas);
+    // Stop the drawn line at the corridor exit point (second-to-last pt).
+    // The last pt is the unit center inside a room — the pin handles that.
+    const lineEnd = Math.max(1, pts.length - 1);
     let totalLen = 0;
     const segs = [];
-    for (let i = 1; i < pts.length; i++) {
+    for (let i = 1; i < lineEnd; i++) {
       const l = Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
       totalLen += l; segs.push(l);
     }
@@ -1309,7 +1312,7 @@
     const drawLine = (color, width) => {
       ctx.strokeStyle = color; ctx.lineWidth = width * devicePixelRatio;
       let rem = drawn; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 1; i < pts.length; i++) {
+      for (let i = 1; i < lineEnd; i++) {
         const l = segs[i-1]; if (rem<=0) break;
         if (rem>=l) { ctx.lineTo(pts[i][0], pts[i][1]); rem-=l; }
         else {
@@ -1430,7 +1433,7 @@
     $title.textContent = FLOORS[id].name[lang];
     loadFloorImage(id, () => {
       if (activeUnit && UNIT_FLOOR[activeUnit]===id) {
-        activePath = buildPath(id, UNIT_POS[activeUnit]);
+        activePath = graphRoute(id, UNIT_POS[activeUnit]) || buildPath(id, UNIT_POS[activeUnit]);
         redrawPath();
       } else clearCanvas();
     });
@@ -1493,7 +1496,7 @@
     $input.classList.remove('error');
     activeUnit = id;
     if (id !== 'BUREAU') localStorage.setItem('pandora_kirkland_last', id);
-    activePath = buildPath(floor, UNIT_POS[id]);
+    activePath = graphRoute(floor, UNIT_POS[id]) || buildPath(floor, UNIT_POS[id]);
 
     if (floor!==activeFloor) {
       selectFloor(floor);
