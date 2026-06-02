@@ -1772,10 +1772,12 @@
     if (activeUnit && UNIT_FLOOR[activeUnit]===activeFloor) redrawPath();
   }).observe($img);
 
-  function initPanzoom() {
+  function initPanzoom(fs) {
     if (pz) { pz.destroy(); pz=null; }
     pz = Panzoom(document.getElementById('mapPanLayer'), {
-      minScale: 1, maxScale: 5, startScale: 1, contain: 'outside', animate: false,
+      minScale: 1, maxScale: 5, startScale: 1,
+      contain: fs ? false : 'outside',
+      animate: false,
     });
     document.getElementById('mapViewport').addEventListener('wheel', e => pz.zoomWithWheel(e), {passive:false});
   }
@@ -1791,7 +1793,7 @@
       document.body.classList.toggle('fs-open', on);
       iconExp.style.display = on ? 'none' : '';
       iconCol.style.display = on ? '' : 'none';
-      setTimeout(redrawPath, 80);
+      setTimeout(() => { initPanzoom(on); redrawPath(); }, 80);
     }
 
     btn.addEventListener('click', () => setFS(!document.body.classList.contains('fs-open')));
