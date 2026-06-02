@@ -1196,45 +1196,79 @@
   // another segment (within snapEps), that segment is split at that point.
   // Endpoints within mergeEps of each other become one node.
   // First endpoint of first segment = node 0 (entrance).
-  function buildGraphFromSegments(segs, mergeEps = 0.008, snapEps = 0.018) {
-    // Split segments at T-junctions (iterate to handle cascading splits)
-    let work = segs.map(([[x1,y1],[x2,y2]]) => [[x1,y1],[x2,y2]]);
-    for (let pass = 0; pass < 4; pass++) {
-      const allPts = work.flatMap(([[x1,y1],[x2,y2]]) => [[x1,y1],[x2,y2]]);
-      const next = [];
-      let split = false;
-      for (const [[ax,ay],[bx,by]] of work) {
-        const dx=bx-ax, dy=by-ay, len2=dx*dx+dy*dy;
-        if (len2 < 1e-10) { next.push([[ax,ay],[bx,by]]); continue; }
-        const hits = [];
-        for (const [px,py] of allPts) {
-          const t = ((px-ax)*dx+(py-ay)*dy)/len2;
-          if (t < 0.02 || t > 0.98) continue;
-          const ex=ax+t*dx, ey=ay+t*dy;
-          if (Math.hypot(px-ex,py-ey) < snapEps) hits.push([t,px,py]);
+  function buildGraphFromSegments(segs, mergeEps = 0.008) {
+    // Returns intersection point parameter [t,u] if two segments cross
+    // at interior points (not near endpoints).
+    function xsect(ax,ay,bx,by,cx,cy,dx,dy) {
+      const dABx=bx-ax,dABy=by-ay,dCDx=dx-cx,dCDy=dy-cy;
+      const den=dABx*dCDy-dABy*dCDx;
+      if(Math.abs(den)<1e-10) return null;
+      const t=((cx-ax)*dCDy-(cy-ay)*dCDx)/den;
+      const u=((cx-ax)*dABy-(cy-ay)*dABx)/den;
+      if(t>0.005&&t<0.995&&u>0.005&&u<0.995)
+        return [t, ax+t*dABx, ay+t*dABy];
+      return null;
+    }
+
+    // Collect split parameters for each segment from:
+    //   (a) crossing with another segment
+    //   (b) T-junction: another segment's endpoint near this segment's body
+    function getSplits(work) {
+      const allPts = work.flatMap(([[x1,y1],[x2,y2]])=>[[x1,y1],[x2,y2]]);
+      return work.map(([[ax,ay],[bx,by]], i) => {
+        const dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy;
+        if(len2<1e-10) return [];
+        const hits=[];
+        // crossings
+        for(let j=0;j<work.length;j++){
+          if(j===i) continue;
+          const r=xsect(ax,ay,bx,by,...work[j][0],...work[j][1]);
+          if(r) hits.push(r);
         }
-        if (!hits.length) { next.push([[ax,ay],[bx,by]]); continue; }
+        // T-junctions: endpoints of other segments near body of this one
+        for(const [px,py] of allPts){
+          const t=((px-ax)*dx+(py-ay)*dy)/len2;
+          if(t<0.01||t>0.99) continue;
+          const ex=ax+t*dx,ey=ay+t*dy;
+          if(Math.hypot(px-ex,py-ey)<0.018) hits.push([t,ex,ey]);
+        }
+        // Deduplicate by t
         hits.sort((a,b)=>a[0]-b[0]);
+        const out=[];
+        for(const h of hits)
+          if(!out.length||Math.abs(h[0]-out[out.length-1][0])>0.005) out.push(h);
+        return out;
+      });
+    }
+
+    let work = segs.map(([[x1,y1],[x2,y2]])=>[[x1,y1],[x2,y2]]);
+    for(let pass=0;pass<4;pass++){
+      const splitSets=getSplits(work);
+      let changed=false;
+      const next=[];
+      for(let i=0;i<work.length;i++){
+        const [[ax,ay],[bx,by]]=work[i];
+        const sp=splitSets[i];
+        if(!sp.length){next.push(work[i]);continue;}
         let prev=[ax,ay];
-        for (const [,px,py] of hits) { next.push([prev,[px,py]]); prev=[px,py]; split=true; }
+        for(const[,px,py] of sp){next.push([prev,[px,py]]);prev=[px,py];changed=true;}
         next.push([prev,[bx,by]]);
       }
-      work = next;
-      if (!split) break;
+      work=next;
+      if(!changed) break;
     }
-    // Build nodes + edges
-    const nodes = [], edges = [];
-    function findOrAdd(x, y) {
-      for (let i = 0; i < nodes.length; i++)
-        if (Math.hypot(nodes[i][0]-x, nodes[i][1]-y) < mergeEps) return i;
-      nodes.push([x, y]);
-      return nodes.length - 1;
+
+    const nodes=[],edges=[];
+    function findOrAdd(x,y){
+      for(let i=0;i<nodes.length;i++)
+        if(Math.hypot(nodes[i][0]-x,nodes[i][1]-y)<mergeEps) return i;
+      nodes.push([x,y]);return nodes.length-1;
     }
-    for (const [[x1,y1],[x2,y2]] of work) {
-      const a = findOrAdd(x1,y1), b = findOrAdd(x2,y2);
-      if (a !== b) edges.push([a,b]);
+    for(const[[x1,y1],[x2,y2]] of work){
+      const a=findOrAdd(x1,y1),b=findOrAdd(x2,y2);
+      if(a!==b) edges.push([a,b]);
     }
-    return { nodes, edges, entrance: 0 };
+    return{nodes,edges,entrance:0};
   }
 
   function graphRoute(floorId, unitPos) {
@@ -1253,25 +1287,40 @@
       adj[a].push([b, w]); adj[b].push([a, w]);
     }
 
-    // Simple Dijkstra from entrance
+    // Direction-aware Dijkstra: penalise turns so fewer-turn paths beat
+    // marginally-shorter many-turn paths. dir: 0=H, 1=V, 2=initial.
     const INF = Infinity;
-    const dist = new Float64Array(N).fill(INF);
-    const prev = new Int32Array(N).fill(-1);
-    dist[entrance] = 0;
-    const heap = new MinHeap();
-    heap.push([0, entrance]);
-    while (heap.size) {
-      const [d, u] = heap.pop();
-      if (d > dist[u] + 1e-9) continue;
+    const TURN = 0.06; // ~6% of map width per turn
+    const dist2 = [new Float64Array(N).fill(INF), new Float64Array(N).fill(INF), new Float64Array(N).fill(INF)];
+    const prev2 = [new Int32Array(N).fill(-1),   new Int32Array(N).fill(-1),   new Int32Array(N).fill(-1)];
+    const prevD2= [new Int8Array(N).fill(-1),     new Int8Array(N).fill(-1),     new Int8Array(N).fill(-1)];
+    dist2[2][entrance] = 0;
+    const heap2 = new MinHeap();
+    heap2.push([0, entrance, 2]);
+    while (heap2.size) {
+      const [d, u, dir] = heap2.pop();
+      if (d > dist2[dir][u] + 1e-9) continue;
       for (const [v, w] of adj[u]) {
-        const nd = d + w;
-        if (nd < dist[v]) { dist[v] = nd; prev[v] = u; heap.push([nd, v]); }
+        const dx=nodes[v][0]-nodes[u][0], dy=nodes[v][1]-nodes[u][1];
+        const nd2 = Math.abs(dx) >= Math.abs(dy) ? 0 : 1;
+        const penalty = (dir < 2 && dir !== nd2) ? TURN : 0;
+        const cost = d + w + penalty;
+        if (cost < dist2[nd2][v]) {
+          dist2[nd2][v]=cost; prev2[nd2][v]=u; prevD2[nd2][v]=dir;
+          heap2.push([cost, v, nd2]);
+        }
       }
     }
+    // Best distance to each node (min over directions)
+    const dist = new Float64Array(N);
+    const bestDir = new Uint8Array(N);
+    for (let i=0;i<N;i++) {
+      const d0=dist2[0][i],d1=dist2[1][i],d2=dist2[2][i];
+      if(d0<=d1&&d0<=d2){dist[i]=d0;bestDir[i]=0;}
+      else if(d1<=d2){dist[i]=d1;bestDir[i]=1;}
+      else{dist[i]=d2;bestDir[i]=2;}
+    }
 
-    // Find best corridor edge to approach from.
-    // Weight horizontal offset 2× and below-unit offset 1.5× so the path
-    // naturally exits from ABOVE the unit (most natural for building corridors).
     function projSeg(ax,ay,bx,by,px,py) {
       const dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy;
       if(len2<1e-12) return [ax,ay];
@@ -1280,7 +1329,6 @@
     }
     function weightedDPU(px,py) {
       const hOff = px - ux, vOff = py - uy;
-      // penalise horizontal approach 2×; approaching from below 1.5×
       return Math.hypot(2 * hOff, vOff > 0 ? 1.5 * vOff : vOff);
     }
     let bestDPU = INF, bestApproach = entrance, bestProj = null;
@@ -1297,10 +1345,14 @@
       }
     }
 
-    // Trace path from entrance to bestApproach, then to proj, then to unit
+    // Backtrack using direction-aware prev arrays
     const path = [];
-    let cur = bestApproach;
-    while (cur !== -1) { path.unshift([...nodes[cur]]); cur = prev[cur]; }
+    let cur = bestApproach, curDir = bestDir[bestApproach];
+    while (cur !== -1) {
+      path.unshift([...nodes[cur]]);
+      const pp = prev2[curDir][cur], pd = prevD2[curDir][cur];
+      cur = pp; curDir = pd < 0 ? 2 : pd;
+    }
     if (bestProj) path.push(bestProj);
     path.push([ux, uy]);
     return simplifyPath(snapAxes(path));
