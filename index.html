@@ -241,13 +241,7 @@
 
     .map-card { padding: 24px 20px 16px; }
     .map-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-    .map-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 900;
-      font-size: 26px;
-      text-transform: uppercase;
-      color: var(--white);
-    }
+    .map-title { display: none; }
     .floor-switch {
       background: rgba(255,255,255,0.06);
       border-radius: 100px;
@@ -306,6 +300,10 @@
 
     /* Fake-landscape fullscreen — CSS only, no DOM moves */
     body.fs-open { overflow: hidden; }
+    body.fs-open .help-card,
+    body.fs-open footer,
+    body.fs-open .map-hint,
+    body.fs-open .result-card { display: none !important; }
 
     body.fs-open .map-viewport {
       position: fixed !important;
