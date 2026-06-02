@@ -308,6 +308,26 @@
       border: none !important;
       z-index: 9999;
     }
+
+    #fsClose {
+      display: none;
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 10001;
+      width: 44px;
+      height: 44px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+    }
+    .map-viewport.fs-active #fsClose { display: flex; }
     #mapImg { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; pointer-events: none; }
     #mapPanLayer { position: relative; width: 100%; line-height: 0; }
     #mapCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -446,6 +466,7 @@
           <img id="mapImg" alt="" draggable="false">
           <canvas id="mapCanvas"></canvas>
         </div>
+        <button id="fsClose" onclick="document.getElementById('fsBtn').click()">✕</button>
       </div>
       <p class="map-hint">
         <span data-lang="en">Pinch or scroll to zoom · Drag to pan</span>
