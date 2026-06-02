@@ -1192,19 +1192,47 @@
   // ─────────────────────────────────────────────────────────────────────────
 
   // Build a nodes+edges graph from raw segment pairs.
-  // Endpoints within `epsilon` of each other are merged into one node.
-  // The first endpoint of the first segment becomes node 0 (entrance).
-  function buildGraphFromSegments(segs, epsilon = 0.008) {
+  // Handles T-junctions: if an endpoint of one segment lies on the body of
+  // another segment (within snapEps), that segment is split at that point.
+  // Endpoints within mergeEps of each other become one node.
+  // First endpoint of first segment = node 0 (entrance).
+  function buildGraphFromSegments(segs, mergeEps = 0.008, snapEps = 0.018) {
+    // Split segments at T-junctions (iterate to handle cascading splits)
+    let work = segs.map(([[x1,y1],[x2,y2]]) => [[x1,y1],[x2,y2]]);
+    for (let pass = 0; pass < 4; pass++) {
+      const allPts = work.flatMap(([[x1,y1],[x2,y2]]) => [[x1,y1],[x2,y2]]);
+      const next = [];
+      let split = false;
+      for (const [[ax,ay],[bx,by]] of work) {
+        const dx=bx-ax, dy=by-ay, len2=dx*dx+dy*dy;
+        if (len2 < 1e-10) { next.push([[ax,ay],[bx,by]]); continue; }
+        const hits = [];
+        for (const [px,py] of allPts) {
+          const t = ((px-ax)*dx+(py-ay)*dy)/len2;
+          if (t < 0.02 || t > 0.98) continue;
+          const ex=ax+t*dx, ey=ay+t*dy;
+          if (Math.hypot(px-ex,py-ey) < snapEps) hits.push([t,px,py]);
+        }
+        if (!hits.length) { next.push([[ax,ay],[bx,by]]); continue; }
+        hits.sort((a,b)=>a[0]-b[0]);
+        let prev=[ax,ay];
+        for (const [,px,py] of hits) { next.push([prev,[px,py]]); prev=[px,py]; split=true; }
+        next.push([prev,[bx,by]]);
+      }
+      work = next;
+      if (!split) break;
+    }
+    // Build nodes + edges
     const nodes = [], edges = [];
     function findOrAdd(x, y) {
       for (let i = 0; i < nodes.length; i++)
-        if (Math.hypot(nodes[i][0]-x, nodes[i][1]-y) < epsilon) return i;
+        if (Math.hypot(nodes[i][0]-x, nodes[i][1]-y) < mergeEps) return i;
       nodes.push([x, y]);
       return nodes.length - 1;
     }
-    for (const [[x1,y1],[x2,y2]] of segs) {
-      const a = findOrAdd(x1, y1), b = findOrAdd(x2, y2);
-      if (a !== b) edges.push([a, b]);
+    for (const [[x1,y1],[x2,y2]] of work) {
+      const a = findOrAdd(x1,y1), b = findOrAdd(x2,y2);
+      if (a !== b) edges.push([a,b]);
     }
     return { nodes, edges, entrance: 0 };
   }
