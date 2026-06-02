@@ -833,7 +833,7 @@
     '1': {
       img:   'Kirkland Map/floor-1.png',
       trace: 'Kirkland Map/floor-1 copy.png',
-      name:  { en: 'Floor 1', fr: 'Étage 1' },
+      name:  { en: 'RC', fr: 'RC' },
       waypoints: [[0.1032, 0.5435]],
     },
     '2': {
@@ -855,6 +855,7 @@
       waypoints: [[0.0965, 0.597]],
     },
   };
+  const FLOOR_ORDER = ['B', '1', '2', '3', '4'];
 
   // ─────────────────────────────────────────────────────────────────────────
   // CORRIDOR GRAPHS
@@ -1558,7 +1559,7 @@
   // STATE
   // ─────────────────────────────────────────────────────────────────────────
   let lang = 'fr';
-  let activeFloor = '1';
+  let activeFloor = '1'; // '1' = RC (ground floor)
   let activeUnit = null;
   let activePath = null;
   let pz = null;
@@ -1592,7 +1593,8 @@
 
   function buildFloorButtons() {
     $switch.innerHTML = '';
-    Object.entries(FLOORS).forEach(([id, f]) => {
+    FLOOR_ORDER.forEach(id => {
+      const f = FLOORS[id];
       const btn = document.createElement('button');
       btn.className = 'floor-btn' + (id===activeFloor ? ' active' : '');
       btn.textContent = f.name[lang];
